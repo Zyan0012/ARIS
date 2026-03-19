@@ -1,6 +1,6 @@
 ---
 name: research-lit
-description: Search and analyze research papers, find related work, summarize key ideas. Use when user says "find papers", "related work", "literature review", "what does this paper say", or needs to understand academic papers.
+description: Search and analyze research papers, find related work, and summarize the literature landscape. Use when the user asks for papers, related work, literature review, academic search, or to understand what work already exists on a research topic.
 argument-hint: [paper-topic-or-url]
 allowed-tools: Bash(*), Read, Glob, Grep, WebSearch, WebFetch, Write, Agent, mcp__zotero__*, mcp__obsidian-vault__*
 ---
@@ -9,185 +9,248 @@ allowed-tools: Bash(*), Read, Glob, Grep, WebSearch, WebFetch, Write, Agent, mcp
 
 Research topic: $ARGUMENTS
 
+## Goal
+
+Build a compact but decision-useful literature review by combining:
+- the user's existing library and notes
+- structured arXiv search
+- a local Semantic Scholar skill when available
+- general web search as fallback and coverage expansion
+
+The output should help downstream skills such as `/idea-discovery`, `/research-refine`, `/experiment-plan`, and `/paper-writing`.
+
 ## Constants
 
-- **PAPER_LIBRARY** — Local directory containing user's paper collection (PDFs). Check these paths in order:
-  1. `papers/` in the current project directory
-  2. `literature/` in the current project directory
-  3. Custom path specified by user in `CLAUDE.md` under `## Paper Library`
-- **MAX_LOCAL_PAPERS = 20** — Maximum number of local PDFs to scan (read first 3 pages each). If more are found, prioritize by filename relevance to the topic.
-- **ARXIV_DOWNLOAD = false** — When `true`, download top 3-5 most relevant arXiv PDFs to PAPER_LIBRARY after search. When `false` (default), only fetch metadata (title, abstract, authors) via arXiv API — no files are downloaded.
-- **ARXIV_MAX_DOWNLOAD = 5** — Maximum number of PDFs to download when `ARXIV_DOWNLOAD = true`.
+- **PAPER_LIBRARY**: Check these paths in order:
+  1. `papers/` in the current project
+  2. `literature/` in the current project
+  3. custom path from `CLAUDE.md` under `## Paper Library`
+- **MAX_LOCAL_PAPERS = 20**: Maximum local PDFs to inspect.
+- **ARXIV_DOWNLOAD = false**: Download arXiv PDFs only when explicitly requested.
+- **ARXIV_MAX_DOWNLOAD = 5**
+- **SEMANTIC_QUERY_VARIANTS = 3**: Generate 2-4 English Semantic Scholar queries, default 3.
+- **SEMANTIC_LIMIT_PER_QUERY = 8**
 
-> 💡 Overrides:
-> - `/research-lit "topic" — paper library: ~/my_papers/` — custom local PDF path
-> - `/research-lit "topic" — sources: zotero, local` — only search Zotero + local PDFs
-> - `/research-lit "topic" — sources: zotero` — only search Zotero
-> - `/research-lit "topic" — sources: web` — only search the web (skip all local)
-> - `/research-lit "topic" — arxiv download: true` — download top relevant arXiv PDFs
-> - `/research-lit "topic" — arxiv download: true, max download: 10` — download up to 10 PDFs
+## Source Selection
 
-## Data Sources
+Parse `$ARGUMENTS` for an optional `sources:` directive.
 
-This skill checks multiple sources **in priority order**. All are optional — if a source is not configured or not requested, skip it silently.
+Valid values:
+- `zotero`
+- `obsidian`
+- `local`
+- `semantic`
+- `web`
+- `all`
 
-### Source Selection
-
-Parse `$ARGUMENTS` for a `— sources:` directive:
-- **If `— sources:` is specified**: Only search the listed sources (comma-separated). Valid values: `zotero`, `obsidian`, `local`, `web`, `all`.
-- **If not specified**: Default to `all` — search every available source in priority order.
+If no directive is provided, use `all`.
 
 Examples:
-```
-/research-lit "diffusion models"                        → all (default)
-/research-lit "diffusion models" — sources: all         → all
-/research-lit "diffusion models" — sources: zotero      → Zotero only
-/research-lit "diffusion models" — sources: zotero, web → Zotero + web
-/research-lit "diffusion models" — sources: local       → local PDFs only
-/research-lit "topic" — sources: obsidian, local, web   → skip Zotero
+
+```text
+/research-lit "diffusion models"
+/research-lit "diffusion models - sources: semantic, web"
+/research-lit "offline RL - sources: local, semantic"
 ```
 
-### Source Table
+## Source Priority
 
-| Priority | Source | ID | How to detect | What it provides |
-|----------|--------|----|---------------|-----------------|
-| 1 | **Zotero** (via MCP) | `zotero` | Try calling any `mcp__zotero__*` tool — if unavailable, skip | Collections, tags, annotations, PDF highlights, BibTeX, semantic search |
-| 2 | **Obsidian** (via MCP) | `obsidian` | Try calling any `mcp__obsidian-vault__*` tool — if unavailable, skip | Research notes, paper summaries, tagged references, wikilinks |
-| 3 | **Local PDFs** | `local` | `Glob: papers/**/*.pdf, literature/**/*.pdf` | Raw PDF content (first 3 pages) |
-| 4 | **Web search** | `web` | Always available (WebSearch) | arXiv, Semantic Scholar, Google Scholar |
+1. Zotero
+2. Obsidian
+3. Local PDFs
+4. Local Semantic Scholar skill
+5. arXiv
+6. Web search
 
-> **Graceful degradation**: If no MCP servers are configured, the skill works exactly as before (local PDFs + web search). Zotero and Obsidian are pure additions.
+Each source is optional. Skip missing sources silently and continue.
+
+## Semantic Scholar Local Skill
+
+Before generic web search, check whether a local Semantic Scholar executor exists.
+
+Possible script locations:
+
+```bash
+~/.codex/skills/semantic-scholar-search/scripts/search.py
+/mnt/c/Users/MX/.codex/skills/semantic-scholar-search/scripts/search.py
+```
+
+If one exists, use it as the preferred structured search path.
+
+### Important rule
+
+Do not send the raw user topic directly into keyword extraction when the request is rich or multilingual.
+
+Instead:
+1. Read the user's request.
+2. Rewrite it into a compact English search brief.
+3. Produce 2-4 precise English query strings.
+4. Run `search.py direct` for each query.
+5. Merge and deduplicate results by `paperId`.
+
+### Search brief template
+
+Always write a short internal brief with:
+- topic
+- must-have concepts
+- optional concepts
+- exclusions
+- time range
+- 2-4 English query strings
+
+### Query rules
+
+- Prefer one quoted topic phrase plus 1-3 supporting tokens.
+- Avoid dumping a bag of generic keywords.
+- Start narrow. Broaden only if recall is weak.
+
+Good:
+
+```text
+"multimodal fake news detection" +calibration +uncertainty
+```
+
+Bad:
+
+```text
+multimodal fake news detection model method analysis evaluation uncertainty calibration approach
+```
+
+### Example command
+
+```bash
+python3 "$SEMANTIC_SCRIPT" direct \
+  --query '"multimodal fake news detection" +calibration +uncertainty' \
+  --keywords 'multimodal fake news detection, calibration, uncertainty, decision-aware evaluation' \
+  --year '2021-' \
+  --limit 8 \
+  --details 3 \
+  --no-save
+```
+
+Use the printed paper metadata as structured evidence for the literature review.
 
 ## Workflow
 
-### Step 0a: Search Zotero Library (if available)
+### Step 0a: Search Zotero
 
-**Skip this step entirely if Zotero MCP is not configured.**
+If Zotero MCP is available:
+- search by topic
+- inspect relevant collections
+- extract annotations and notes
+- collect citation metadata
 
-Try calling a Zotero MCP tool (e.g., search). If it succeeds:
+These annotations are high-value signals because they reflect what the user already found important.
 
-1. **Search by topic**: Use the Zotero search tool to find papers matching the research topic
-2. **Read collections**: Check if the user has a relevant collection/folder for this topic
-3. **Extract annotations**: For highly relevant papers, pull PDF highlights and notes — these represent what the user found important
-4. **Export BibTeX**: Get citation data for relevant papers (useful for `/paper-write` later)
-5. **Compile results**: For each relevant Zotero entry, extract:
-   - Title, authors, year, venue
-   - User's annotations/highlights (if any)
-   - Tags the user assigned
-   - Which collection it belongs to
+### Step 0b: Search Obsidian
 
-> 📚 Zotero annotations are gold — they show what the user personally highlighted as important, which is far more valuable than generic summaries.
+If Obsidian MCP is available:
+- search notes related to the topic
+- inspect tags and linked notes
+- extract the user's summaries, critiques, and open questions
 
-### Step 0b: Search Obsidian Vault (if available)
+### Step 0c: Scan local PDFs
 
-**Skip this step entirely if Obsidian MCP is not configured.**
+- inspect `papers/**/*.pdf` and `literature/**/*.pdf`
+- de-duplicate against Zotero results
+- read the first 3 pages of the most relevant PDFs
+- record title, year, core contribution, and why it matters
 
-Try calling an Obsidian MCP tool (e.g., search). If it succeeds:
+### Step 1: Structured external search
 
-1. **Search vault**: Search for notes related to the research topic
-2. **Check tags**: Look for notes tagged with relevant topics (e.g., `#diffusion-models`, `#paper-review`)
-3. **Read research notes**: For relevant notes, extract the user's own summaries and insights
-4. **Follow links**: If notes link to other relevant notes (wikilinks), follow them for additional context
-5. **Compile results**: For each relevant note:
-   - Note title and path
-   - User's summary/insights
-   - Links to other notes (research graph)
-   - Any frontmatter metadata (paper URL, status, rating)
+#### Step 1a: Semantic Scholar local skill
 
-> 📝 Obsidian notes represent the user's **processed understanding** — more valuable than raw paper content for understanding their perspective.
+If the local Semantic Scholar script exists and `sources` includes `semantic` or `all`:
 
-### Step 0c: Scan Local Paper Library
+1. Generate an English search brief.
+2. Produce 2-4 direct query variants.
+3. Run `search.py direct` for each query.
+4. Merge and deduplicate by `paperId`.
+5. Keep the most relevant 8-15 papers.
 
-Before searching online, check if the user already has relevant papers locally:
+If direct mode returns weak recall, optionally run one `progressive` search as a second pass.
 
-1. **Locate library**: Check PAPER_LIBRARY paths for PDF files
-   ```
-   Glob: papers/**/*.pdf, literature/**/*.pdf
-   ```
+#### Step 1b: arXiv API
 
-2. **De-duplicate against Zotero**: If Step 0a found papers, skip any local PDFs already covered by Zotero results (match by filename or title).
+Try to locate `arxiv_fetch.py`:
 
-3. **Filter by relevance**: Match filenames and first-page content against the research topic. Skip clearly unrelated papers.
-
-4. **Summarize relevant papers**: For each relevant local PDF (up to MAX_LOCAL_PAPERS):
-   - Read first 3 pages (title, abstract, intro)
-   - Extract: title, authors, year, core contribution, relevance to topic
-   - Flag papers that are directly related vs tangentially related
-
-5. **Build local knowledge base**: Compile summaries into a "papers you already have" section. This becomes the starting point — external search fills the gaps.
-
-> 📚 If no local papers are found, skip to Step 1. If the user has a comprehensive local collection, the external search can be more targeted (focus on what's missing).
-
-### Step 1: Search (external)
-- Use WebSearch to find recent papers on the topic
-- Check arXiv, Semantic Scholar, Google Scholar
-- Focus on papers from last 2 years unless studying foundational work
-- **De-duplicate**: Skip papers already found in Zotero, Obsidian, or local library
-
-**arXiv API search** (always runs, no download by default):
-
-Locate the fetch script and search arXiv directly:
 ```bash
-# Try to find arxiv_fetch.py
 SCRIPT=$(find tools/ -name "arxiv_fetch.py" 2>/dev/null | head -1)
-# If not found, check ARIS install
 [ -z "$SCRIPT" ] && SCRIPT=$(find ~/.claude/skills/arxiv/ -name "arxiv_fetch.py" 2>/dev/null | head -1)
+```
 
-# Search arXiv API for structured results (title, abstract, authors, categories)
+If found:
+
+```bash
 python3 "$SCRIPT" search "QUERY" --max 10
 ```
 
-If `arxiv_fetch.py` is not found, fall back to WebSearch for arXiv (same as before).
+Use arXiv for high-recall preprint discovery and recent work.
 
-The arXiv API returns structured metadata (title, abstract, full author list, categories, dates) — richer than WebSearch snippets. Merge these results with WebSearch findings and de-duplicate.
+If `ARXIV_DOWNLOAD = true`, download only the top relevant papers not already in the local library.
 
-**Optional PDF download** (only when `ARXIV_DOWNLOAD = true`):
+#### Step 1c: Web search fallback
 
-After all sources are searched and papers are ranked by relevance:
-```bash
-# Download top N most relevant arXiv papers
-python3 "$SCRIPT" download ARXIV_ID --dir papers/
-```
-- Only download papers ranked in the top ARXIV_MAX_DOWNLOAD by relevance
-- Skip papers already in the local library
-- 1-second delay between downloads (rate limiting)
-- Verify each PDF > 10 KB
+Use WebSearch and WebFetch to cover:
+- project pages
+- Google Scholar snippets
+- venue pages
+- papers missed by Semantic Scholar and arXiv
 
-### Step 2: Analyze Each Paper
-For each relevant paper (from all sources), extract:
-- **Problem**: What gap does it address?
-- **Method**: Core technical contribution (1-2 sentences)
-- **Results**: Key numbers/claims
-- **Relevance**: How does it relate to our work?
-- **Source**: Where we found it (Zotero/Obsidian/local/web) — helps user know what they already have vs what's new
+Do not rely on generic web search alone if the Semantic Scholar local skill is available.
+
+### Step 2: Analyze each paper
+
+For each relevant paper, extract:
+- problem
+- method
+- key result
+- relevance to our work
+- source
 
 ### Step 3: Synthesize
-- Group papers by approach/theme
-- Identify consensus vs disagreements in the field
-- Find gaps that our work could fill
-- If Obsidian notes exist, incorporate the user's own insights into the synthesis
+
+Group papers by:
+- approach
+- benchmark or task
+- evaluation philosophy
+- major disagreement or limitation
+
+Explicitly identify:
+- what is already well covered
+- what remains missing
+- what claims would be hard to defend given the current literature
 
 ### Step 4: Output
-Present as a structured literature table:
 
-```
+Always produce a structured table:
+
+```text
 | Paper | Venue | Method | Key Result | Relevance to Us | Source |
 |-------|-------|--------|------------|-----------------|--------|
 ```
 
-Plus a narrative summary of the landscape (3-5 paragraphs).
+Then add a short narrative synthesis in 3-5 paragraphs:
+- landscape overview
+- dominant clusters of work
+- unresolved gaps
+- concrete implications for the user's project
 
-If Zotero BibTeX was exported, include a `references.bib` snippet for direct use in paper writing.
+If BibTeX is available from Zotero, include a short `references.bib` snippet.
 
-### Step 5: Save (if requested)
-- Save paper PDFs to `literature/` or `papers/`
-- Update related work notes in project memory
-- If Obsidian is available, optionally create a literature review note in the vault
+### Step 5: Save if requested
+
+Optionally:
+- save downloaded PDFs into `papers/` or `literature/`
+- write notes into project memory
+- create or update an Obsidian literature note when available
 
 ## Key Rules
-- Always include paper citations (authors, year, venue)
-- Distinguish between peer-reviewed and preprints
-- Be honest about limitations of each paper
-- Note if a paper directly competes with or supports our approach
-- **Never fail because a MCP server is not configured** — always fall back gracefully to the next data source
-- Zotero/Obsidian tools may have different names depending on how the user configured the MCP server (e.g., `mcp__zotero__search` or `mcp__zotero-mcp__search_items`). Try the most common patterns and adapt.
+
+- Always include authors, year, and venue when available.
+- Distinguish peer-reviewed papers from preprints.
+- De-duplicate aggressively across all sources.
+- Prefer precise structured search over broad keyword stuffing.
+- When Semantic Scholar local skill is available, use `direct` mode first.
+- Use raw keyword extraction only as fallback or debugging.
+- Never fail because a source is missing; continue with the remaining sources.
