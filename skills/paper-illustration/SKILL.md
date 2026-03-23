@@ -1,6 +1,6 @@
 ---
 name: paper-illustration
-description: "Generate publication-quality AI illustrations for academic papers using Gemini image generation. Creates architecture diagrams, method illustrations with Claude-supervised iterative refinement loop. Use when user says \"生成图表\", \"画架构图\", \"AI绘图\", \"paper illustration\", \"generate diagram\", or needs visual figures for papers."
+description: "Generate publication-quality AI illustrations for academic papers using a Gemini-compatible image provider. Creates architecture diagrams, method illustrations with Claude-supervised iterative refinement loop. Use when user says \"生成图表\", \"画架构图\", \"AI绘图\", \"paper illustration\", \"generate diagram\", or needs visual figures for papers."
 argument-hint: [description-or-method-file]
 allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob, Agent, mcp__codex__codex, mcp__codex__codex-reply, WebSearch
 ---
@@ -65,12 +65,13 @@ Generate publication-quality illustrations using a **multi-stage workflow** with
 
 ## Constants
 
-- **IMAGE_MODEL = `gemini-3-pro-image-preview`** — Paperbanana (Nano Banana Pro) for image rendering
-- **REASONING_MODEL = `gemini-3-pro-preview`** — Gemini for layout optimization and style checking
+- **IMAGE_MODEL = `gemini-3-pro-image-preview-4k`** — Gemini-compatible image model for final rendering
+- **REASONING_MODEL = `gemini-3-pro-preview`** — Gemini-compatible text model for layout optimization and style checking
 - **MAX_ITERATIONS = 5** — Maximum refinement rounds
 - **TARGET_SCORE = 9** — Minimum acceptable score (1-10) — RAISED FOR QUALITY
 - **OUTPUT_DIR = `figures/ai_generated/`** — Output directory
-- **API_KEY_ENV = `GEMINI_API_KEY`** — Environment variable
+- **API_KEY_ENV = `GEMINI_API_KEY`** — Bearer token environment variable
+- **API_BASE_ENV = `GEMINI_BASE_URL`** — OpenAI-compatible base URL, e.g. `https://vibecodingapi.ai/v1`
 
 ## CVPR/ICLR/NeurIPS Top-Tier Conference Style Guide
 
@@ -161,7 +162,7 @@ Generate publication-quality illustrations using a **multi-stage workflow** with
 # Check API key
 if [ -z "$GEMINI_API_KEY" ]; then
     echo "ERROR: GEMINI_API_KEY not set"
-    echo "Get your key from: https://aistudio.google.com/app/apikey"
+    echo "Set a provider token in GEMINI_API_KEY"
     echo "Set it: export GEMINI_API_KEY='your-key'"
     exit 1
 fi
@@ -265,13 +266,13 @@ VERIFY: Each arrow must point to the CORRECT target!
 [Any specific requirements from user]
 ```
 
-### Step 2: Gemini Layout Optimization (gemini-3-pro)
+### Step 2: Layout Optimization via OpenAI-Compatible Chat API
 
-**Claude sends the initial prompt to Gemini (gemini-3-pro) for layout optimization.**
+**Claude sends the initial prompt to the Gemini-compatible text model for layout optimization.**
 
 ```bash
 #!/bin/bash
-# Step 2: Optimize layout using Gemini gemini-3-pro
+# Step 2: Optimize layout using Gemini-compatible chat completions
 # This step refines component positioning and spacing
 
 set -e
@@ -280,7 +281,8 @@ OUTPUT_DIR="figures/ai_generated"
 mkdir -p "$OUTPUT_DIR"
 
 API_KEY="${GEMINI_API_KEY}"
-URL="https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=$API_KEY"
+API_BASE="${GEMINI_BASE_URL:-https://vibecodingapi.ai/v1}"
+URL="${API_BASE}/chat/completions"
 
 # The initial prompt from Claude
 INITIAL_PROMPT='[Claude fills in the detailed prompt here]'
@@ -305,17 +307,19 @@ Output a DETAILED layout specification that will be used for rendering."
 python3 << PYTHON
 import json
 payload = {
-    "contents": [{"parts": [{"text": '''$LAYOUT_REQUEST'''}]}]
+    "model": "gemini-3-pro-preview",
+    "messages": [{"role": "user", "content": '''$LAYOUT_REQUEST'''}]
 }
 with open("/tmp/gemini_layout_request.json", "w") as f:
     json.dump(payload, f, indent=2)
 print("Layout request created")
 PYTHON
 
-# Call Gemini gemini-3-pro-preview for layout optimization (DIRECT connection, no proxy)
+# Call OpenAI-compatible chat endpoint for layout optimization
 RESPONSE=$(curl -s --max-time 90 \
   -X POST "$URL" \
   -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $API_KEY" \
   -d @/tmp/gemini_layout_request.json)
 
 # Extract layout description
@@ -323,7 +327,7 @@ LAYOUT_DESCRIPTION=$(echo "$RESPONSE" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
 try:
-    print(data['candidates'][0]['content']['parts'][0]['text'])
+    print(data['choices'][0]['message']['content'])
 except:
     print('Error extracting layout')
 ")
@@ -333,16 +337,17 @@ echo "$LAYOUT_DESCRIPTION"
 echo "$LAYOUT_DESCRIPTION" > "$OUTPUT_DIR/layout_description.txt"
 ```
 
-### Step 3: Gemini Style Verification (gemini-3-pro)
+### Step 3: Style Verification via OpenAI-Compatible Chat API
 
-**Claude sends the optimized layout to Gemini for CVPR/NeurIPS style verification.**
+**Claude sends the optimized layout to the Gemini-compatible text model for CVPR/NeurIPS style verification.**
 
 ```bash
 #!/bin/bash
-# Step 3: Verify and enhance style compliance using Gemini gemini-3-pro
+# Step 3: Verify and enhance style compliance using Gemini-compatible chat completions
 
 API_KEY="${GEMINI_API_KEY}"
-URL="https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=$API_KEY"
+API_BASE="${GEMINI_BASE_URL:-https://vibecodingapi.ai/v1}"
+URL="${API_BASE}/chat/completions"
 
 # Read layout from previous step
 LAYOUT=$(cat figures/ai_generated/layout_description.txt)
@@ -368,17 +373,19 @@ Output an ENHANCED figure specification with explicit style instructions for ren
 python3 << PYTHON
 import json
 payload = {
-    "contents": [{"parts": [{"text": '''$STYLE_REQUEST'''}]}]
+    "model": "gemini-3-pro-preview",
+    "messages": [{"role": "user", "content": '''$STYLE_REQUEST'''}]
 }
 with open("/tmp/gemini_style_request.json", "w") as f:
     json.dump(payload, f, indent=2)
 print("Style request created")
 PYTHON
 
-# Call Gemini gemini-3-pro-preview for style verification (DIRECT connection, no proxy)
+# Call OpenAI-compatible chat endpoint for style verification
 RESPONSE=$(curl -s --max-time 90 \
   -X POST "$URL" \
   -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $API_KEY" \
   -d @/tmp/gemini_style_request.json)
 
 # Extract style-enhanced specification
@@ -386,7 +393,7 @@ STYLE_SPEC=$(echo "$RESPONSE" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
 try:
-    print(data['candidates'][0]['content']['parts'][0]['text'])
+    print(data['choices'][0]['message']['content'])
 except:
     print('Error extracting style spec')
 ")
@@ -396,15 +403,13 @@ echo "$STYLE_SPEC"
 echo "$STYLE_SPEC" > "figures/ai_generated/style_spec.txt"
 ```
 
-### Step 4: Paperbanana Image Rendering (gemini-3-pro-image-preview)
+### Step 4: Image Rendering via OpenAI-Compatible Images API
 
-**Claude sends the optimized, style-verified specification to Paperbanana for rendering.**
+**Claude sends the optimized, style-verified specification to the Gemini-compatible image model for rendering.**
 
 ```bash
 #!/bin/bash
-# Step 4: Render image using Paperbanana (gemini-3-pro-image-preview)
-# Internal codename: Nano Banana Pro
-# Use DIRECT connection (no proxy) - proxy causes SSL errors
+# Step 4: Render image using OpenAI-compatible image generations API
 
 set -e
 
@@ -412,7 +417,8 @@ OUTPUT_DIR="figures/ai_generated"
 mkdir -p "$OUTPUT_DIR"
 
 API_KEY="${GEMINI_API_KEY}"
-URL="https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent?key=$API_KEY"
+API_BASE="${GEMINI_BASE_URL:-https://vibecodingapi.ai/v1}"
+URL="${API_BASE}/images/generations"
 
 # Read the style-enhanced specification from previous step
 STYLE_SPEC=$(cat figures/ai_generated/style_spec.txt)
@@ -432,8 +438,10 @@ RENDERING REQUIREMENTS:
 python3 << PYTHON
 import json
 payload = {
-    "contents": [{"parts": [{"text": '''$RENDER_PROMPT'''}]}],
-    "generationConfig": {"responseModalities": ["TEXT", "IMAGE"]}
+    "model": "gemini-3-pro-image-preview-4k",
+    "prompt": '''$RENDER_PROMPT''',
+    "n": 1,
+    "size": "1024x1024"
 }
 with open("/tmp/gemini_request.json", "w") as f:
     json.dump(payload, f, indent=2)
@@ -444,6 +452,7 @@ PYTHON
 RESPONSE=$(curl -s --max-time 180 \
   -X POST "$URL" \
   -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $API_KEY" \
   -d @/tmp/gemini_request.json)
 
 # Check for error
@@ -453,28 +462,27 @@ if echo "$RESPONSE" | grep -q '"error"'; then
     exit 1
 fi
 
-# Extract and save image
+# Extract image URL and download it
 echo "$RESPONSE" | python3 << 'PYTHON'
-import sys, json, base64
+import sys, json, urllib.request
 from pathlib import Path
 
 output_dir = Path("figures/ai_generated")
 data = json.load(sys.stdin)
 
 try:
-    parts = data['candidates'][0]['content']['parts']
+    image_url = data['data'][0]['url']
     iteration = 1  # Claude increments this each iteration
 
-    for part in parts:
-        if 'text' in part:
-            print(f"\n[Paperbanana]: {part['text'][:200]}...")
-        elif 'inlineData' in part:
-            img_data = base64.b64decode(part['inlineData']['data'])
-            img_path = output_dir / f"figure_v{iteration}.png"
-            with open(img_path, "wb") as f:
-                f.write(img_data)
-            print(f"\n✅ Image saved: {img_path}")
-            print(f"   Size: {len(img_data)/1024:.1f} KB")
+    img_path = output_dir / f"figure_v{iteration}.png"
+    with urllib.request.urlopen(image_url, timeout=120) as resp:
+        img_data = resp.read()
+    with open(img_path, "wb") as f:
+        f.write(img_data)
+    print(f"
+Image saved: {img_path}")
+    print(f"   Size: {len(img_data)/1024:.1f} KB")
+    print(f"   Source URL: {image_url}")
 
 except Exception as e:
     print(f"Parse error: {e}")
