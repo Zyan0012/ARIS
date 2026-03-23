@@ -68,14 +68,16 @@ Each source is optional. Skip missing sources silently and continue.
 
 Before generic web search, check whether a local Semantic Scholar executor exists.
 
-Possible script locations:
+Preferred lookup order:
 
 ```bash
 ~/.codex/skills/semantic-scholar-search/scripts/search.py
 /mnt/c/Users/MX/.codex/skills/semantic-scholar-search/scripts/search.py
 ```
 
-If one exists, use it as the preferred structured search path.
+Use the WSL-local path first when it exists.
+
+Only fall back to the Windows-mounted path when the WSL-local copy is missing.
 
 ### Important rule
 
