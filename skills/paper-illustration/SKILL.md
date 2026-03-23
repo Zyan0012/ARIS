@@ -65,13 +65,13 @@ Generate publication-quality illustrations using a **multi-stage workflow** with
 
 ## Constants
 
-- **IMAGE_MODEL = `gemini-3-pro-image-preview-4k`** — Gemini-compatible image model for final rendering
+- **IMAGE_MODEL = `gemini-3-pro-image-preview`** — Gemini-compatible image model for final rendering
 - **REASONING_MODEL = `gemini-3-pro-preview`** — Gemini-compatible text model for layout optimization and style checking
 - **MAX_ITERATIONS = 5** — Maximum refinement rounds
 - **TARGET_SCORE = 9** — Minimum acceptable score (1-10) — RAISED FOR QUALITY
 - **OUTPUT_DIR = `figures/ai_generated/`** — Output directory
 - **API_KEY_ENV = `GEMINI_API_KEY`** — Bearer token environment variable
-- **API_BASE_ENV = `GEMINI_BASE_URL`** — OpenAI-compatible base URL, e.g. `https://vibecodingapi.ai/v1`
+- **API_BASE_ENV = `GEMINI_BASE_URL`** — Provider base URL, e.g. `https://api.apiplus.org`
 
 ## CVPR/ICLR/NeurIPS Top-Tier Conference Style Guide
 
@@ -281,8 +281,8 @@ OUTPUT_DIR="figures/ai_generated"
 mkdir -p "$OUTPUT_DIR"
 
 API_KEY="${GEMINI_API_KEY}"
-API_BASE="${GEMINI_BASE_URL:-https://vibecodingapi.ai/v1}"
-URL="${API_BASE}/chat/completions"
+API_BASE="${GEMINI_BASE_URL:-https://api.apiplus.org}"
+URL="${API_BASE}/v1/chat/completions"
 
 # The initial prompt from Claude
 INITIAL_PROMPT='[Claude fills in the detailed prompt here]'
@@ -346,8 +346,8 @@ echo "$LAYOUT_DESCRIPTION" > "$OUTPUT_DIR/layout_description.txt"
 # Step 3: Verify and enhance style compliance using Gemini-compatible chat completions
 
 API_KEY="${GEMINI_API_KEY}"
-API_BASE="${GEMINI_BASE_URL:-https://vibecodingapi.ai/v1}"
-URL="${API_BASE}/chat/completions"
+API_BASE="${GEMINI_BASE_URL:-https://api.apiplus.org}"
+URL="${API_BASE}/v1/chat/completions"
 
 # Read layout from previous step
 LAYOUT=$(cat figures/ai_generated/layout_description.txt)
@@ -403,13 +403,13 @@ echo "$STYLE_SPEC"
 echo "$STYLE_SPEC" > "figures/ai_generated/style_spec.txt"
 ```
 
-### Step 4: Image Rendering via OpenAI-Compatible Images API
+### Step 4: Image Rendering via Gemini Native Image API
 
 **Claude sends the optimized, style-verified specification to the Gemini-compatible image model for rendering.**
 
 ```bash
 #!/bin/bash
-# Step 4: Render image using OpenAI-compatible image generations API
+# Step 4: Render image using Gemini native generateContent API
 
 set -e
 
@@ -417,8 +417,8 @@ OUTPUT_DIR="figures/ai_generated"
 mkdir -p "$OUTPUT_DIR"
 
 API_KEY="${GEMINI_API_KEY}"
-API_BASE="${GEMINI_BASE_URL:-https://vibecodingapi.ai/v1}"
-URL="${API_BASE}/images/generations"
+API_BASE="${GEMINI_BASE_URL:-https://api.apiplus.org}"
+URL="${API_BASE}/v1beta/models/gemini-3-pro-image-preview:generateContent"
 
 # Read the style-enhanced specification from previous step
 STYLE_SPEC=$(cat figures/ai_generated/style_spec.txt)
@@ -438,55 +438,92 @@ RENDERING REQUIREMENTS:
 python3 << PYTHON
 import json
 payload = {
-    "model": "gemini-3-pro-image-preview-4k",
-    "prompt": '''$RENDER_PROMPT''',
-    "n": 1,
-    "size": "1024x1024"
+    "contents": [
+        {
+            "parts": [
+                {
+                    "text": '''$RENDER_PROMPT'''
+                }
+            ]
+        }
+    ]
 }
 with open("/tmp/gemini_request.json", "w") as f:
     json.dump(payload, f, indent=2)
 print("JSON payload created")
 PYTHON
 
-# Call Paperbanana API WITHOUT proxy (direct connection works better)
-RESPONSE=$(curl -s --max-time 180 \
+# Call the Gemini native image API and keep the raw response for debugging.
+RESPONSE_FILE="/tmp/gemini_render_response.json"
+HTTP_CODE=$(curl -sS --max-time 180 \
+  -o "$RESPONSE_FILE" \
+  -w "%{http_code}" \
   -X POST "$URL" \
   -H 'Content-Type: application/json' \
-  -H "Authorization: Bearer $API_KEY" \
+  -H "x-goog-api-key: $API_KEY" \
   -d @/tmp/gemini_request.json)
 
-# Check for error
-if echo "$RESPONSE" | grep -q '"error"'; then
-    echo "API Error:"
-    echo "$RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$RESPONSE"
-    exit 1
-fi
-
-# Extract image URL and download it
-echo "$RESPONSE" | python3 << 'PYTHON'
-import sys, json, urllib.request
+python3 - "$RESPONSE_FILE" "$HTTP_CODE" << 'PYTHON'
+import json
+import sys
+import base64
 from pathlib import Path
 
+response_path = Path(sys.argv[1])
+http_code = sys.argv[2]
 output_dir = Path("figures/ai_generated")
-data = json.load(sys.stdin)
+raw = response_path.read_text(encoding="utf-8", errors="replace").strip()
+
+if not raw:
+    print(f"Image API returned empty body (HTTP {http_code})")
+    sys.exit(1)
 
 try:
-    image_url = data['data'][0]['url']
-    iteration = 1  # Claude increments this each iteration
+    data = json.loads(raw)
+except json.JSONDecodeError:
+    print(f"Image API returned non-JSON body (HTTP {http_code}):")
+    print(raw[:1000])
+    sys.exit(1)
 
+if http_code != "200":
+    print(f"Image API request failed with HTTP {http_code}")
+    print(json.dumps(data, ensure_ascii=False, indent=2)[:2000])
+    sys.exit(1)
+
+if "error" in data:
+    print("Image API returned an error payload:")
+    print(json.dumps(data, ensure_ascii=False, indent=2)[:2000])
+    message = data.get("error", {}).get("message", "")
+    if "quota" in message.lower() or "429" in message:
+        print("Upstream quota appears exhausted. Switch key/provider or wait for reset.")
+    sys.exit(1)
+
+iteration = 1  # Claude increments this each iteration
+img_path = output_dir / f"figure_v{iteration}.jpg"
+parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+inline_part = next((p for p in parts if "inlineData" in p), None)
+if not inline_part:
+    print("Image API response missing inline image data")
+    print(json.dumps(data, ensure_ascii=False, indent=2)[:2000])
+    sys.exit(1)
+
+mime = inline_part["inlineData"].get("mimeType", "image/jpeg")
+img_b64 = inline_part["inlineData"].get("data", "")
+if not img_b64:
+    print("Image API response inline image data is empty")
+    print(json.dumps(data, ensure_ascii=False, indent=2)[:2000])
+    sys.exit(1)
+
+img_data = base64.b64decode(img_b64)
+if mime.endswith("png"):
     img_path = output_dir / f"figure_v{iteration}.png"
-    with urllib.request.urlopen(image_url, timeout=120) as resp:
-        img_data = resp.read()
-    with open(img_path, "wb") as f:
-        f.write(img_data)
-    print(f"
-Image saved: {img_path}")
-    print(f"   Size: {len(img_data)/1024:.1f} KB")
-    print(f"   Source URL: {image_url}")
 
-except Exception as e:
-    print(f"Parse error: {e}")
-    print(f"Raw response: {str(data)[:500]}")
+with open(img_path, "wb") as f:
+    f.write(img_data)
+
+print(f"Image saved: {img_path}")
+print(f"Size: {len(img_data)/1024:.1f} KB")
+print(f"MIME: {mime}")
 PYTHON
 ```
 
