@@ -20,6 +20,8 @@ This skill chains five sub-skills into a single automated pipeline:
 
 Each phase builds on the previous one's output. The final deliverable is a polished, reviewed `paper/` directory with LaTeX source and compiled PDF.
 
+In this hybrid pack, the pipeline itself is unchanged, but `paper-plan` and `paper-write` use Orchestra-adapted shared references for stronger story framing and prose guidance.
+
 ## Constants
 
 - **VENUE = `ICLR`** — Target venue. Options: `ICLR`, `NeurIPS`, `ICML`. Affects style file, page limit, citation format.
@@ -92,29 +94,13 @@ Invoke `/paper-figure` to generate data-driven plots and tables:
 
 **Output:** `figures/` directory with PDFs, generation scripts, and LaTeX snippets.
 
-#### Phase 2b: AI Illustration Generation (when `illustration: true`)
-
-**Skip this step entirely if `illustration` is not set or is `false`.**
-
-If the paper plan includes architecture diagrams, pipeline figures, or method illustrations, invoke `/paper-illustration`:
-
-```
-/paper-illustration "[method description from PAPER_PLAN.md or NARRATIVE_REPORT.md]"
-```
-
-**What this does:**
-- Claude plans the layout → Gemini optimizes → Nano Banana Pro renders → Claude reviews (score ≥ 9)
-- Output: `figures/ai_generated/*.png` — publication-quality method diagrams
-- Requires `GEMINI_API_KEY` environment variable
-
-> **Without `illustration: true`:** Architecture diagrams must still be created manually (draw.io, Figma, TikZ) and placed in `figures/` before proceeding — same as before.
+> **Scope:** Auto-generates ~60% of figures (data plots, comparison tables). Architecture diagrams, pipeline figures, and qualitative result grids must be created manually and placed in `figures/` before proceeding. See `/paper-figure` SKILL.md for details.
 
 **Checkpoint:** List generated vs manual figures.
 
 ```
 📊 Figures complete:
-- Data plots (auto): [list]
-- AI illustrations (auto): [list, if illustration: true]
+- Auto-generated: [list]
 - Manual (need your input): [list]
 - LaTeX snippets: figures/latex_includes.tex
 
@@ -253,7 +239,6 @@ Invoke `/auto-paper-improvement-loop` to polish the paper:
 ## Key Rules
 
 - **Large file handling**: If the Write tool fails due to file size, immediately retry using Bash (`cat << 'EOF' > file`) to write in chunks. Do NOT ask the user for permission — just do it silently.
-
 - **Don't skip phases.** Each phase builds on the previous one — skipping leads to errors.
 - **Checkpoint between phases** when AUTO_PROCEED=false. Present results and wait for approval.
 - **Manual figures first.** If the paper needs architecture diagrams or qualitative results, the user must provide them before Phase 3.

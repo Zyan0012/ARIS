@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 850 860" font-family="monospace">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 850 1120" font-family="monospace">
   <defs>
     <!-- Arrows for top-left (idea) panel -->
     <marker id="ar1" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto">
@@ -265,7 +265,66 @@
     <text x="275" y="166" font-size="8px" fill="#4aaa4a"> ████░ 78%</text>
     <text x="233" y="178" font-size="8px" fill="#4aaa4a">Loss: 2.341 → 1.872</text>
 
-    <line x1="202" y1="136" x2="222" y2="136" stroke="#e67e22" stroke-width="2" stroke-dasharray="4,2"/>
+    <!-- GPT-5.4 mini pixel character (code reviewer) between code and deploy -->
+    <g transform="translate(355,192) scale(0.5)">
+      <!-- Hair (dark) -->
+      <rect x="20" y="42" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="27" y="42" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="34" y="42" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="41" y="42" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="13" y="49" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="20" y="49" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="27" y="49" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="34" y="49" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="41" y="49" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="48" y="49" width="7" height="7" fill="#2C2C2C"/>
+      <!-- Face -->
+      <rect x="13" y="56" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="20" y="56" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="27" y="56" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="34" y="56" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="41" y="56" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="48" y="56" width="7" height="7" fill="#FFDAB9"/>
+      <!-- Eyes + glasses -->
+      <rect x="13" y="63" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="20" y="63" width="7" height="7" fill="#333"/>
+      <rect x="27" y="63" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="34" y="63" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="41" y="63" width="7" height="7" fill="#333"/>
+      <rect x="48" y="63" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="18" y="62" width="13" height="2" fill="#555"/>
+      <rect x="38" y="62" width="13" height="2" fill="#555"/>
+      <rect x="31" y="63" width="7" height="1" fill="#555"/>
+      <!-- Mouth -->
+      <rect x="13" y="70" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="20" y="70" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="27" y="70" width="7" height="7" fill="#D4956A"/>
+      <rect x="34" y="70" width="7" height="7" fill="#D4956A"/>
+      <rect x="41" y="70" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="48" y="70" width="7" height="7" fill="#FFDAB9"/>
+      <!-- Body (green shirt) -->
+      <rect x="6" y="77" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="13" y="77" width="7" height="7" fill="#74AA63"/>
+      <rect x="20" y="77" width="7" height="7" fill="#74AA63"/>
+      <rect x="27" y="77" width="7" height="7" fill="#74AA63"/>
+      <rect x="34" y="77" width="7" height="7" fill="#74AA63"/>
+      <rect x="41" y="77" width="7" height="7" fill="#74AA63"/>
+      <rect x="48" y="77" width="7" height="7" fill="#74AA63"/>
+      <rect x="55" y="77" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="13" y="84" width="7" height="7" fill="#74AA63"/>
+      <rect x="20" y="84" width="7" height="7" fill="#74AA63"/>
+      <rect x="27" y="84" width="7" height="7" fill="#74AA63"/>
+      <rect x="34" y="84" width="7" height="7" fill="#74AA63"/>
+      <rect x="41" y="84" width="7" height="7" fill="#74AA63"/>
+      <rect x="48" y="84" width="7" height="7" fill="#74AA63"/>
+      <!-- Legs -->
+      <rect x="16" y="91" width="7" height="7" fill="#444"/>
+      <rect x="23" y="91" width="7" height="7" fill="#444"/>
+      <rect x="37" y="91" width="7" height="7" fill="#444"/>
+      <rect x="44" y="91" width="7" height="7" fill="#444"/>
+    </g>
+    <text x="372" y="247" text-anchor="middle" font-size="6px" fill="#74AA63" font-weight="bold">GPT-5.4</text>
+    <text x="372" y="254" text-anchor="middle" font-size="5px" fill="#74AA63">(Code Review)</text>
 
     <!-- Results panel -->
     <rect x="65" y="196" width="295" height="46" fill="#fff" stroke="#ddd" stroke-width="1" rx="6"/>
@@ -616,5 +675,170 @@
 
     <!-- Tagline -->
     <text x="425" y="248" text-anchor="middle" font-size="11px" fill="#bbb" font-style="italic">Workflow 3: Paper Writing — from narrative to polished PDF</text>
+  </g>
+
+  <!-- ============================================================ -->
+  <!-- BOTTOM-3: Rebuttal Pipeline (850x260, offset y=860)           -->
+  <!-- ============================================================ -->
+  <g transform="translate(0,860)">
+    <rect width="850" height="260" fill="#fafbfc" rx="12"/>
+
+    <!-- Title: Workflow 4 -->
+    <text x="425" y="25" text-anchor="middle" font-size="12px" fill="#666" font-weight="bold">Workflow 4: Rebuttal</text>
+
+    <!-- Reviewer cards (left) -->
+    <rect x="30" y="40" width="180" height="110" fill="#fff3f3" stroke="#e74c3c" stroke-width="1" rx="6"/>
+    <text x="120" y="58" text-anchor="middle" font-size="9px" fill="#e74c3c" font-weight="bold">📋 Reviews</text>
+    <text x="40" y="75" font-size="7px" fill="#666">R1: "Assumption too strong" (6/10)</text>
+    <text x="40" y="88" font-size="7px" fill="#666">R2: "Missing baselines" (5/10)</text>
+    <text x="40" y="101" font-size="7px" fill="#666">R3: "Good paper, minor issues" (7/10)</text>
+    <text x="40" y="118" font-size="7px" fill="#999">R1: swing | R2: negative | R3: positive</text>
+    <text x="40" y="131" font-size="7px" fill="#e74c3c" font-weight="bold">⚠️ 8 issues atomized</text>
+
+    <!-- Arrow: reviews → strategy -->
+    <line x1="212" y1="95" x2="232" y2="95" stroke="#e67e22" stroke-width="1.5" marker-end="url(#ar1)"/>
+
+    <!-- Strategy box (middle-left) -->
+    <rect x="235" y="40" width="150" height="110" fill="#fef9e7" stroke="#f39c12" stroke-width="1" rx="6"/>
+    <text x="310" y="58" text-anchor="middle" font-size="9px" fill="#e67e22" font-weight="bold">🗺️ Strategy</text>
+    <text x="245" y="75" font-size="7px" fill="#666">Global theme 1: add experiments</text>
+    <text x="245" y="88" font-size="7px" fill="#666">Global theme 2: clarify novelty</text>
+    <text x="245" y="101" font-size="7px" fill="#666">Budget: 4800 / 5000 chars</text>
+    <text x="245" y="118" font-size="7px" fill="#27ae60" font-weight="bold">✓ Focus on swing R1</text>
+    <text x="245" y="131" font-size="7px" fill="#e74c3c">✗ 2 claims need user approval</text>
+
+    <!-- Arrow: strategy → draft -->
+    <line x1="387" y1="95" x2="407" y2="95" stroke="#e67e22" stroke-width="1.5" marker-end="url(#ar1)"/>
+
+    <!-- Draft box (middle-right) -->
+    <rect x="410" y="40" width="150" height="110" fill="#eafaf1" stroke="#27ae60" stroke-width="1" rx="6"/>
+    <text x="485" y="58" text-anchor="middle" font-size="9px" fill="#27ae60" font-weight="bold">✍️ Draft + Lint</text>
+    <text x="420" y="75" font-size="7px" fill="#666">Global opener (500 chars)</text>
+    <text x="420" y="88" font-size="7px" fill="#666">R1: 4 issues → 4 answers</text>
+    <text x="420" y="101" font-size="7px" fill="#666">R2: 3 issues → 3 answers</text>
+    <text x="420" y="114" font-size="7px" fill="#666">R3: 1 issue → 1 answer</text>
+    <text x="420" y="131" font-size="7px" fill="#27ae60" font-weight="bold">✓ 6 lints passed</text>
+
+    <!-- Arrow: draft → stress test -->
+    <line x1="562" y1="95" x2="582" y2="95" stroke="#e67e22" stroke-width="1.5" marker-end="url(#ar1)"/>
+
+    <!-- GPT stress test + output (right) -->
+    <rect x="585" y="40" width="230" height="110" fill="#f0faf0" stroke="#74AA63" stroke-width="1" rx="6"/>
+    <text x="700" y="58" text-anchor="middle" font-size="9px" fill="#74AA63" font-weight="bold">🔬 GPT-5.4 Stress Test</text>
+    <text x="595" y="75" font-size="7px" fill="#666">Coverage: ✅ 8/8 issues answered</text>
+    <text x="595" y="88" font-size="7px" fill="#666">Provenance: ✅ no fabrication</text>
+    <text x="595" y="101" font-size="7px" fill="#666">Commitment: ✅ no overpromise</text>
+    <text x="595" y="118" font-size="7px" fill="#27ae60" font-weight="bold">Verdict: safe to submit ✅</text>
+    <text x="595" y="135" font-size="7px" fill="#999">→ PASTE_READY.txt (4832/5000)</text>
+
+    <!-- CC pixel character (left-bottom, full body) -->
+    <g transform="translate(15,155) scale(0.65)">
+      <rect x="20" y="42" width="7" height="7" fill="#8B5E3C"/>
+      <rect x="27" y="42" width="7" height="7" fill="#8B5E3C"/>
+      <rect x="34" y="42" width="7" height="7" fill="#8B5E3C"/>
+      <rect x="41" y="42" width="7" height="7" fill="#8B5E3C"/>
+      <rect x="13" y="49" width="7" height="7" fill="#8B5E3C"/>
+      <rect x="20" y="49" width="7" height="7" fill="#8B5E3C"/>
+      <rect x="27" y="49" width="7" height="7" fill="#8B5E3C"/>
+      <rect x="34" y="49" width="7" height="7" fill="#8B5E3C"/>
+      <rect x="41" y="49" width="7" height="7" fill="#8B5E3C"/>
+      <rect x="48" y="49" width="7" height="7" fill="#8B5E3C"/>
+      <rect x="13" y="56" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="20" y="56" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="27" y="56" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="34" y="56" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="41" y="56" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="48" y="56" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="13" y="63" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="20" y="63" width="7" height="7" fill="#333"/>
+      <rect x="27" y="63" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="34" y="63" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="41" y="63" width="7" height="7" fill="#333"/>
+      <rect x="48" y="63" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="13" y="70" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="20" y="70" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="27" y="70" width="7" height="7" fill="#E8967A"/>
+      <rect x="34" y="70" width="7" height="7" fill="#E8967A"/>
+      <rect x="41" y="70" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="48" y="70" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="6" y="77" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="13" y="77" width="7" height="7" fill="#4A9EDA"/>
+      <rect x="20" y="77" width="7" height="7" fill="#4A9EDA"/>
+      <rect x="27" y="77" width="7" height="7" fill="#4A9EDA"/>
+      <rect x="34" y="77" width="7" height="7" fill="#4A9EDA"/>
+      <rect x="41" y="77" width="7" height="7" fill="#4A9EDA"/>
+      <rect x="48" y="77" width="7" height="7" fill="#4A9EDA"/>
+      <rect x="55" y="77" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="13" y="84" width="7" height="7" fill="#4A9EDA"/>
+      <rect x="20" y="84" width="7" height="7" fill="#4A9EDA"/>
+      <rect x="27" y="84" width="7" height="7" fill="#4A9EDA"/>
+      <rect x="34" y="84" width="7" height="7" fill="#4A9EDA"/>
+      <rect x="41" y="84" width="7" height="7" fill="#4A9EDA"/>
+      <rect x="48" y="84" width="7" height="7" fill="#4A9EDA"/>
+      <rect x="16" y="91" width="7" height="7" fill="#444"/>
+      <rect x="23" y="91" width="7" height="7" fill="#444"/>
+      <rect x="37" y="91" width="7" height="7" fill="#444"/>
+      <rect x="44" y="91" width="7" height="7" fill="#444"/>
+    </g>
+    <text x="40" y="228" text-anchor="middle" font-size="8px" fill="#4A9EDA" font-weight="bold">Claude Code</text>
+    <text x="40" y="237" text-anchor="middle" font-size="7px" fill="#4A9EDA">(Drafter)</text>
+
+    <!-- GPT pixel character (right-bottom, full body with glasses) -->
+    <g transform="translate(765,155) scale(0.65)">
+      <rect x="20" y="42" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="27" y="42" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="34" y="42" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="41" y="42" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="13" y="49" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="20" y="49" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="27" y="49" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="34" y="49" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="41" y="49" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="48" y="49" width="7" height="7" fill="#2C2C2C"/>
+      <rect x="13" y="56" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="20" y="56" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="27" y="56" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="34" y="56" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="41" y="56" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="48" y="56" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="13" y="63" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="20" y="63" width="7" height="7" fill="#333"/>
+      <rect x="27" y="63" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="34" y="63" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="41" y="63" width="7" height="7" fill="#333"/>
+      <rect x="48" y="63" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="18" y="62" width="13" height="2" fill="#555"/>
+      <rect x="38" y="62" width="13" height="2" fill="#555"/>
+      <rect x="31" y="63" width="7" height="1" fill="#555"/>
+      <rect x="13" y="70" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="20" y="70" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="27" y="70" width="7" height="7" fill="#D4956A"/>
+      <rect x="34" y="70" width="7" height="7" fill="#D4956A"/>
+      <rect x="41" y="70" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="48" y="70" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="6" y="77" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="13" y="77" width="7" height="7" fill="#74AA63"/>
+      <rect x="20" y="77" width="7" height="7" fill="#74AA63"/>
+      <rect x="27" y="77" width="7" height="7" fill="#74AA63"/>
+      <rect x="34" y="77" width="7" height="7" fill="#74AA63"/>
+      <rect x="41" y="77" width="7" height="7" fill="#74AA63"/>
+      <rect x="48" y="77" width="7" height="7" fill="#74AA63"/>
+      <rect x="55" y="77" width="7" height="7" fill="#FFDAB9"/>
+      <rect x="13" y="84" width="7" height="7" fill="#74AA63"/>
+      <rect x="20" y="84" width="7" height="7" fill="#74AA63"/>
+      <rect x="27" y="84" width="7" height="7" fill="#74AA63"/>
+      <rect x="34" y="84" width="7" height="7" fill="#74AA63"/>
+      <rect x="41" y="84" width="7" height="7" fill="#74AA63"/>
+      <rect x="48" y="84" width="7" height="7" fill="#74AA63"/>
+      <rect x="16" y="91" width="7" height="7" fill="#444"/>
+      <rect x="23" y="91" width="7" height="7" fill="#444"/>
+      <rect x="37" y="91" width="7" height="7" fill="#444"/>
+      <rect x="44" y="91" width="7" height="7" fill="#444"/>
+    </g>
+    <text x="795" y="228" text-anchor="middle" font-size="8px" fill="#74AA63" font-weight="bold">GPT-5.4</text>
+    <text x="795" y="237" text-anchor="middle" font-size="7px" fill="#74AA63">(Stress Test)</text>
+
+    <!-- Tagline -->
+    <text x="425" y="248" text-anchor="middle" font-size="11px" fill="#bbb" font-style="italic">Workflow 4: Rebuttal — reviews in, grounded response out</text>
   </g>
 </svg>

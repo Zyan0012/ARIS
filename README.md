@@ -10,13 +10,13 @@
 
 > 🌙 **Let Claude Code do research while you sleep.** Wake up to find your paper scored, weaknesses identified, experiments run, and narrative rewritten — autonomously.
 >
-> 🪶 **Radically lightweight — zero dependencies, zero lock-in.** The entire system is plain Markdown files. No framework to learn, no database to maintain, no Docker to configure, no daemon to babysit. Every skill is a single `SKILL.md` readable by any LLM — swap Claude Code for [OpenClaw](docs/OPENCLAW_ADAPTATION.md), [Cursor](docs/CURSOR_ADAPTATION.md), Windsurf, or your own agent and the workflows still work. Fork it, rewrite it, adapt it to your stack.
+> 🪶 **Radically lightweight — zero dependencies, zero lock-in.** The entire system is plain Markdown files. No framework to learn, no database to maintain, no Docker to configure, no daemon to babysit. Every skill is a single `SKILL.md` readable by any LLM — swap Claude Code for [Codex CLI](skills/skills-codex/), [OpenClaw](docs/OPENCLAW_ADAPTATION.md), [Cursor](docs/CURSOR_ADAPTATION.md), [Trae](docs/TRAE_ARIS_RUNBOOK_EN.md), [Antigravity](docs/ANTIGRAVITY_ADAPTATION.md), Windsurf, or your own agent and the workflows still work. Fork it, rewrite it, adapt it to your stack.
 >
 > *💡 ARIS is a methodology, not a platform. What matters is the research workflow — take it wherever you go. 🌱*
 
-[![Featured on PaperWeekly](https://img.shields.io/badge/Featured%20on-PaperWeekly-red?style=flat)](https://mp.weixin.qq.com/s/tDniVryVGjDkkkWl-5sTkQ) · [![Featured in awesome-agent-skills](https://img.shields.io/badge/Featured%20in-awesome--agent--skills-blue?style=flat&logo=github)](https://github.com/VoltAgent/awesome-agent-skills) · [![AI Digital Crew - Project of the Day](https://img.shields.io/badge/AI%20Digital%20Crew-Project%20of%20the%20Day%20(2026.03.14)-orange?style=flat)](https://aidigitalcrew.com) · [💬 Join Community](#-community) · [![Cite](https://img.shields.io/badge/📖_Cite_Us-BibTeX-green?style=flat)](#-citation)
+[![Featured on PaperWeekly](https://img.shields.io/badge/Featured%20on-PaperWeekly-red?style=flat)](https://mp.weixin.qq.com/s/tDniVryVGjDkkkWl-5sTkQ) · [![PaperWeekly — MiniMax-M2.7](https://img.shields.io/badge/PaperWeekly-MiniMax--M2.7-red?style=flat)](https://mp.weixin.qq.com/s/KLFU74lAL2FAIc9K6i1Kqg) · [![Featured in awesome-agent-skills](https://img.shields.io/badge/Featured%20in-awesome--agent--skills-blue?style=flat&logo=github)](https://github.com/VoltAgent/awesome-agent-skills) · [![AI Digital Crew - Project of the Day](https://img.shields.io/badge/AI%20Digital%20Crew-Project%20of%20the%20Day%20(2026.03.14)-orange?style=flat)](https://aidigitalcrew.com) · [💬 Join Community](#-community) · [![Cite](https://img.shields.io/badge/📖_Cite_Us-BibTeX-green?style=flat)](#-citation)
 
-Custom [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skills for autonomous ML research workflows. These skills orchestrate **cross-model collaboration** — Claude Code drives the research while an external LLM (via [Codex MCP](https://github.com/openai/codex)) acts as a critical reviewer. 🔀 **Also supports [alternative model combinations](#-alternative-model-combinations) (GLM, MiniMax, Kimi, LongCat, DeepSeek, etc.) — no Claude or OpenAI API required.** 🤖 **[Codex CLI native](skills/skills-codex/)** — full skill set also available for OpenAI Codex. 🖱️ **[Cursor](docs/CURSOR_ADAPTATION.md)** — works in Cursor too. 🆓 **[Free tier via ModelScope](docs/MODELSCOPE_GUIDE.md) — zero cost, zero lock-in.**
+Custom [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skills for autonomous ML research workflows. These skills orchestrate **cross-model collaboration** — Claude Code drives the research while an external LLM (via [Codex MCP](https://github.com/openai/codex)) acts as a critical reviewer. 🔀 **Also supports [alternative model combinations](#-alternative-model-combinations) (Kimi, LongCat, DeepSeek, etc.) — no Claude or OpenAI API required.** For example, [MiniMax-M2.7 + GLM-5 or GLM-5 + MiniMax-M2.7](docs/MiniMax-GLM-Configuration.md). 🤖 **[Codex CLI native](skills/skills-codex/)** — full skill set also available for OpenAI Codex. 🖱️ **[Cursor](docs/CURSOR_ADAPTATION.md)** — works in Cursor too. 🖥️ **[Trae](docs/TRAE_ARIS_RUNBOOK_EN.md)** — ByteDance AI IDE. 🚀 **[Antigravity](docs/ANTIGRAVITY_ADAPTATION.md)** — Google's agent-first IDE. 🆓 **[Free tier via ModelScope](docs/MODELSCOPE_GUIDE.md) — zero cost, zero lock-in.**
 
 > 💭 **Why not self-play with a single model?** Using Claude Code subagents or agent teams for both execution and review is technically possible, but tends to fall into **local minima** — the same model reviewing its own patterns creates blind spots.
 >
@@ -26,21 +26,81 @@ Custom [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skills for 
 >
 > Claude Code's strength is fast, fluid execution; Codex (GPT-5.4 xhigh) is slower but more deliberate and rigorous in critique. These complementary styles — **speed × rigor** — produce better outcomes than either model talking to itself.
 
+## 🎯 More Than Just a Prompt
+
+> These are full pipelines — you can also use each workflow independently. Already have an idea? Skip to Workflow 1.5. Have results? Jump to Workflow 3. Got reviews? Jump to Workflow 4. See [Quick Start](#-quick-start) for all commands and [Workflows](#-workflows) for the full breakdown.
+
+**Basic mode** — give ARIS a research direction, it handles everything:
+
+```
+/research-pipeline "factorized gap in discrete diffusion LMs"
+```
+
+**🔥 Targeted mode** — got a paper you want to improve? Give ARIS the paper + the code:
+
+```
+/research-pipeline "improve method X" — ref paper: https://arxiv.org/abs/2406.04329, base repo: https://github.com/org/project
+```
+
+ARIS reads the paper → finds its weaknesses → clones the codebase → generates ideas that specifically fix *those* weaknesses with *that* code → runs experiments → writes your paper. Like telling a research assistant: *"read this paper, use this repo, find what's missing, and fix it."*
+
+> Mix and match: `ref paper` only = "what can be improved?", `base repo` only = "what can I build with this code?", both = "improve *this* paper using *this* code."
+
+**🔥 Rebuttal mode** — reviews just dropped? Don't panic. ARIS reads every concern, builds a strategy, and drafts a rebuttal that's grounded, structured, and under the character limit:
+
+```
+/rebuttal "paper/ + reviews" — venue: ICML, character limit: 5000
+```
+
+| Parameter | Default | What it does |
+|-----------|---------|-------------|
+| `venue` | `ICML` | Target venue (ICML/NeurIPS/ICLR/CVPR/ACL/AAAI/ACM) |
+| `character limit` | — | **Required.** Hard character limit for rebuttal text |
+| `quick mode` | `false` | Stop after parsing + strategy (Phase 0-3). See what reviewers want before drafting |
+| `auto experiment` | `false` | Auto-run supplementary experiments via `/experiment-bridge` when reviewers ask for new evidence |
+| `max stress test rounds` | `1` | How many times GPT-5.4 xhigh stress-tests the draft |
+| `max followup rounds` | `3` | Per-reviewer follow-up round limit |
+
+Three safety gates — rebuttal will NOT finalize if any fails:
+- 🔒 **No fabrication** — every claim maps to paper/review/user-confirmed result
+- 🔒 **No overpromise** — every promise is user-approved
+- 🔒 **Full coverage** — every reviewer concern is tracked
+
+Two outputs: `PASTE_READY.txt` (exact char count, paste to venue) + `REBUTTAL_DRAFT_rich.md` (extended version for manual editing).
+
+**After acceptance** — your paper is in, now prepare the presentation:
+
+```
+/paper-slides "paper/"     # → Beamer PDF + PPTX + speaker notes + Q&A prep
+/paper-poster "paper/"     # → A0/A1 poster PDF + editable PPTX + SVG
+```
+
+> *💡 From idea to paper to podium — one toolchain. 🌱*
+
+## 🏆 Papers Accepted with ARIS
+
+| Paper | Score | Venue | Author | Stack |
+|-------|:-----:|-------|--------|-------|
+| CS Paper | **8/10** "clear accept" | CS Conference | [@DefanXue](https://github.com/DefanXue) & [@Monglitay](https://github.com/Monglitay) | Claude Code + GPT-5.4 |
+| AAAI Paper | **7/10** "good paper, accept" | AAAI 2026 Main Technical | [@xinbo820-web](https://github.com/xinbo820-web) | Pure Codex CLI |
+
+> 🎉 Built entirely with ARIS — from idea to acceptance. [Full details + reviewer screenshots →](#-community-showcase--papers-built-with-aris)
+
 ## 📢 What's New
 
+- **2026-03-24** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 📝 **[Workflow 4: `/rebuttal`](skills/rebuttal/SKILL.md)** — post-submission rebuttal pipeline. Parse reviews → atomize → strategy → draft → safety check → GPT-5.4 stress test → finalize (strict + rich versions) → follow-up rounds. 3 safety gates (no fabrication, no overpromise, full coverage). `quick mode` for analysis only. `auto experiment` for supplementary experiments. Designed from 5 successful rebuttal case studies + 3 rounds GPT-5.4 xhigh design review
+- **2026-03-23** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🔧 **3 skills integrated into core workflows**: `/training-check`, `/result-to-claim`, `/ablation-planner`. 📦 **`compact` mode** — generate lean summary files for short-context models and session recovery (`— compact: true`). 🔄 **research-refine checkpoint** — auto-resume after interruption. Community contributions by [@JingxuanKang](https://github.com/JingxuanKang) & [@couragec](https://github.com/couragec)
+- **2026-03-22** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 📋 **[Templates](templates/)** — input templates for every workflow. 📄 **7 venue templates** — CVPR, ACL, AAAI, ACM MM added. 🛡️ **Anti-hallucination fix** — Workflow 2 enforces DBLP → CrossRef → [VERIFY]. 🔗 **`base repo`** — clone a GitHub repo as base codebase (`— base repo: https://github.com/org/project`)
+- **2026-03-22** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🔍 **[Codex + Gemini review guide](docs/CODEX_GEMINI_REVIEW_GUIDE.md)** — Codex executes, Gemini reviews via local `gemini-review` MCP bridge. [CN](docs/CODEX_GEMINI_REVIEW_GUIDE_CN.md)
+- **2026-03-20** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🚀 **[Antigravity adaptation guide](docs/ANTIGRAVITY_ADAPTATION.md)** — use ARIS skills in [Google Antigravity](https://antigravity.google/) (agent-first IDE). Native `SKILL.md` support, dual model, MCP config, EN + [CN](docs/ANTIGRAVITY_ADAPTATION_CN.md). Community contribution by [@PeppaPigw](https://github.com/PeppaPigw)
+- **2026-03-20** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🖥️ **[Trae adaptation guide](docs/TRAE_ARIS_RUNBOOK_EN.md)** — use ARIS skills in [Trae](https://www.trae.ai/) (ByteDance AI IDE), EN + CN guides. Community contribution by [@Prometheus-cotigo](https://github.com/Prometheus-cotigo). 🔢 **[`formula-derivation`](skills/formula-derivation/SKILL.md)** — research formula development and verification. Community contribution by [@Falling-Flower](https://github.com/Falling-Flower)
 - **2026-03-19** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🖼️ **[`paper-poster`](skills/paper-poster/SKILL.md)** — Conference poster (tcbposter → A0/A1 PDF + PPTX + SVG). Venue colors, visual review, Codex review. Community contribution by [@dengzhe-hou](https://github.com/dengzhe-hou)
 - **2026-03-19** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🔗 **Workflow 1.5 upgraded** — `/experiment-bridge` now includes **GPT-5.4 cross-model code review** before GPU deployment (`code review: true` by default). 📊 **W&B fix** — real `wandb.Api()` calls
-- **2026-03-18** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🎤 **[`paper-slides`](skills/paper-slides/SKILL.md)** — Conference presentation slides (beamer → PDF + PPTX) with speaker notes, talk script, and Q&A prep. 4 talk types (oral/spotlight/poster/invited). Community contribution by [@dengzhe-hou](https://github.com/dengzhe-hou)
-- **2026-03-18** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🔁 **[Codex + Claude reviewer bridge](docs/CODEX_CLAUDE_REVIEW_GUIDE.md)** — Codex executes, Claude reviews via local `claude-review` MCP bridge. Community contribution by [@loujc](https://github.com/loujc)
-- **2026-03-18** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🖱️ **[Cursor adaptation guide](docs/CURSOR_ADAPTATION.md)** — use ARIS skills in [Cursor](https://www.cursor.com/) with `@`-reference, MCP setup, and state file recovery. Community contribution by [@YecanLee](https://github.com/YecanLee)
-- **2026-03-18** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🤖 **[Codex CLI native skills](skills/skills-codex/)** — full 31-skill ARIS set for [Codex CLI](https://github.com/openai/codex) using `spawn_agent`. Community contributions by [@Falling-Flower](https://github.com/Falling-Flower) & [@No-518](https://github.com/No-518)
-- **2026-03-18** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 📝 **[`grant-proposal`](skills/grant-proposal/SKILL.md)** — Draft structured grant proposals from research ideas. Supports 9 agencies: KAKENHI (Japan), NSF (US), NSFC (China, incl. 面上/青年/优青/杰青/海外优青/重点), ERC (EU), DFG, SNSF, ARC, NWO, and generic. Chains `/research-lit` → `/novelty-check` → `/research-review` → `/paper-illustration`. Community contribution by [@dengzhe-hou](https://github.com/dengzhe-hou)
-- **2026-03-18** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🎨 **[`paper-illustration`](skills/paper-illustration/SKILL.md)** — AI-generated publication-quality architecture diagrams and method figures. Claude plans → Gemini renders → iterative refinement until score ≥ 9. Integrated into Workflow 3 (`illustration: true`, requires `GEMINI_API_KEY`). Built on [PaperBanana](https://github.com/dwzhu-pku/PaperBanana). Community contribution by [@Joseph-li343](https://github.com/Joseph-li343)
-  <details><summary>Preview demo</summary><br><img src="assets/paper_illustration_demo.png" width="600" alt="paper-illustration demo" /></details>
-- **2026-03-18** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 📊 **[CitationClaw](https://github.com/VisionXLab/CitationClaw)** — citation impact analysis: paper title → citation crawling, scholar identification, tiered analysis, HTML dashboard
-- **2026-03-17** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🔧 **Git code sync** — `/run-experiment` now supports `code_sync: git` (`git push` → `ssh "git pull"`) as alternative to rsync. **[NARRATIVE_REPORT example](docs/NARRATIVE_REPORT_EXAMPLE.md)** for Workflow 3. **Parameter pass-through** — set any downstream parameter at any level with `— key: value` ([details](#%EF%B8%8F-customization)). 🆓 **[ModelScope guide](docs/MODELSCOPE_GUIDE.md)** — free (2000 calls/day), one key, no automation restrictions ([Alt E](#-alternative-model-combinations))
 <details>
-<summary>Earlier updates (2026-03-12 — 2026-03-16)</summary>
+<summary>Earlier updates (2026-03-12 — 2026-03-18, 12 entries)</summary>
+
+- **2026-03-18** — 🎤 `paper-slides` + 🔁 Codex+Claude bridge + 🖱️ Cursor guide + 🤖 Codex CLI skills + 📝 `grant-proposal` + 🎨 `paper-illustration` (Gemini) + 📊 CitationClaw
+- **2026-03-17** — 🔧 Git code sync + 🆓 ModelScope guide + parameter pass-through
 
 - **2026-03-16** — 🔬 **[`research-refine`](skills/research-refine/SKILL.md)** + [`experiment-plan`](skills/experiment-plan/SKILL.md) — turn vague ideas into problem-anchored proposals with claim-driven experiment roadmaps. Now integrated into Workflow 1 (`/idea-discovery`). Community contribution by [@zjYao36](https://github.com/zjYao36)
 - **2026-03-16** — 🇨🇳 **[Alibaba Coding Plan guide](docs/ALI_CODING_PLAN_GUIDE.md)** — one API key, 4 models (Kimi-K2.5 + Qwen3.5+ + GLM-5 + MiniMax-M2.5), dual-endpoint setup. Community contribution by [@tianhao909](https://github.com/tianhao909)
@@ -73,10 +133,11 @@ claude
 > /experiment-bridge                         # Workflow 1.5 — have a plan? implement + deploy + collect results
 > /auto-review-loop "your paper topic or scope"  # Workflow 2: review → fix → re-review overnight
 > /paper-writing "NARRATIVE_REPORT.md"       # Workflow 3: narrative → polished PDF
+> /rebuttal "paper/ + reviews" — venue: ICML    # Workflow 4: parse reviews → draft rebuttal → follow-up
 > /research-pipeline "your research direction"  # Full pipeline: Workflow 1 → 1.5 → 2 → 3 end-to-end
 ```
 
-> 📝 **New to Workflow 3?** See [`docs/NARRATIVE_REPORT_EXAMPLE.md`](docs/NARRATIVE_REPORT_EXAMPLE.md) for a complete sample input — shows what claims, experiments, results, and figure descriptions to include for best results.
+> 📝 **Templates available!** See [`templates/`](templates/) for ready-to-use input templates for every workflow — [research brief](templates/RESEARCH_BRIEF_TEMPLATE.md) (Workflow 1), [experiment plan](templates/EXPERIMENT_PLAN_TEMPLATE.md) (Workflow 1.5), [narrative report](templates/NARRATIVE_REPORT_TEMPLATE.md) (Workflow 3), [paper plan](templates/PAPER_PLAN_TEMPLATE.md) (Workflow 3).
 
 > **Tip:** All pipeline behaviors are configurable via inline overrides — append `— key: value` to any command:
 >
@@ -89,7 +150,11 @@ claude
 > | `DBLP_BIBTEX` | `true` | Fetch real BibTeX from [DBLP](https://dblp.org)/[CrossRef](https://www.crossref.org) instead of LLM-generated entries. Eliminates hallucinated citations. Zero install |
 > | `code review` | `true` | GPT-5.4 xhigh reviews experiment code before GPU deployment. Set `false` to skip |
 > | `wandb` | `false` | Auto-add W&B logging to experiment scripts. Set `true` + configure `wandb_project` in CLAUDE.md. `/monitor-experiment` pulls training curves from W&B |
-> | `illustration` | `false` | Auto-generate architecture/method diagrams via Gemini in Workflow 3. Requires `GEMINI_API_KEY` env var |
+> | `illustration` | `gemini` | AI illustration in Workflow 3: `gemini` (default, needs `GEMINI_API_KEY`), `mermaid` (free), or `false` (skip) |
+> | `venue` | `ICLR` | Target venue: `ICLR`, `NeurIPS`, `ICML`, `CVPR`, `ACL`, `AAAI`, `ACM`. Determines LaTeX style file and page limit |
+> | `base repo` | `false` | GitHub repo URL to clone as base codebase (e.g., `— base repo: https://github.com/org/project`). No code? Build on top of an open-source project |
+> | `compact` | `false` | Generate compact summary files (`IDEA_CANDIDATES.md`, `findings.md`, `EXPERIMENT_LOG.md`) for short-context models and session recovery |
+> | `ref paper` | `false` | Reference paper to build on (PDF path or arXiv URL). Summarized first, then ideas extend/improve it. Combine with `base repo` for paper+code workflows |
 >
 > ```
 > /research-pipeline "your topic" — AUTO_PROCEED: false                          # pause at idea selection gate
@@ -102,6 +167,8 @@ claude
 > **Important:** Codex MCP uses the model from `~/.codex/config.toml`, not from skill files. Make sure it says `model = "gpt-5.4"` (recommended). Other options: `gpt-5.3-codex`, `gpt-5.2-codex`, `o3`. Run `codex setup` or edit the file directly.
 
 > **Want Codex to execute but Claude Code to review?** See [`docs/CODEX_CLAUDE_REVIEW_GUIDE.md`](docs/CODEX_CLAUDE_REVIEW_GUIDE.md). That path installs the base `skills/skills-codex/*`, then overlays `skills/skills-codex-claude-review/*`, and routes review-heavy skills through the local `claude-review` MCP bridge.
+
+> **Want Codex to execute but Gemini to review locally?** See [`docs/CODEX_GEMINI_REVIEW_GUIDE.md`](docs/CODEX_GEMINI_REVIEW_GUIDE.md) and [CN](docs/CODEX_GEMINI_REVIEW_GUIDE_CN.md). That path installs the base `skills/skills-codex/*`, then overlays `skills/skills-codex-gemini-review/*`, and routes the reviewer-aware predefined skills through the local `gemini-review` MCP bridge using direct Gemini API by default.
 
 See [full setup guide](#%EF%B8%8F-setup) for details and [alternative model combinations](#-alternative-model-combinations) if you don't have Claude/OpenAI API.
 
@@ -150,20 +217,37 @@ A real overnight 4-round run on an ML research project, from borderline reject t
 
 The loop autonomously ran **20+ GPU experiments**, rewrote the paper's narrative framing, and killed claims that didn't hold up — all without human intervention.
 
+## 🏆 Community Showcase — Papers Built with ARIS
+
+Real projects where the ARIS pipeline was used end-to-end. **If you've used ARIS to complete a paper, we'd love to feature it here — open an issue or PR!**
+
+| Paper | Rating | Venue | Built by | Notes |
+|-------|:------:|-------|----------|-------|
+| CS Paper | **8/10** — "Top 50% of accepted papers, clear accept" | CS Conference | [@DefanXue](https://github.com/DefanXue) & [@Monglitay](https://github.com/Monglitay) | Full ARIS pipeline: idea → experiments → auto-review → paper writing. Reviewer: "empirical findings are stark, well-supported, and expose a fundamental flaw" |
+| AAAI 2026 Paper | **7/10** — "Good paper, accept" | AAAI 2026 Main Technical | [@xinbo820-web](https://github.com/xinbo820-web) | Pure **Codex CLI** (ARIS-Codex skills). Accepted at AAAI 2026 |
+
+<details><summary>Reviewer screenshots</summary>
+<br>
+<img src="assets/community_showcase_8_10.png" width="700" alt="8/10 — CS Paper" />
+<img src="assets/community_showcase_7_10_codex.png" width="700" alt="7/10 — AAAI 2026, Codex CLI" />
+</details>
+
+> 🎉 *Papers built entirely with ARIS — from idea to acceptance. Know more? Let us know!*
+
 ## 🧩 Awesome Community Skills & Extensions
 
 Domain-specific skills and external projects contributed by the community. PRs welcome — just add a `skills/your-skill/SKILL.md` and open a PR!
 
 > 💡 **How to use:** Community skills are not auto-wired into core workflows. To use one, ask your executor (Claude Code / OpenClaw / etc.) to read the skill's `SKILL.md`, then plug it into the appropriate workflow stage based on the description below.
 
-🎉 **Community Skills (11):** [research-refine](skills/research-refine/SKILL.md) · [experiment-plan](skills/experiment-plan/SKILL.md) · [grant-proposal](skills/grant-proposal/SKILL.md) · [paper-poster](skills/paper-poster/SKILL.md) · [paper-slides](skills/paper-slides/SKILL.md) · [mermaid-diagram](skills/mermaid-diagram/SKILL.md) · [proof-writer](skills/proof-writer/SKILL.md) · [comm-lit-review](skills/comm-lit-review/SKILL.md) · [dse-loop](skills/dse-loop/SKILL.md) · [idea-discovery-robot](skills/idea-discovery-robot/SKILL.md) · [paper-illustration](skills/paper-illustration/SKILL.md)
+🎉 **Community Skills (12):** [research-refine](skills/research-refine/SKILL.md) · [experiment-plan](skills/experiment-plan/SKILL.md) · [grant-proposal](skills/grant-proposal/SKILL.md) · [paper-poster](skills/paper-poster/SKILL.md) · [paper-slides](skills/paper-slides/SKILL.md) · [mermaid-diagram](skills/mermaid-diagram/SKILL.md) · [proof-writer](skills/proof-writer/SKILL.md) · [comm-lit-review](skills/comm-lit-review/SKILL.md) · [dse-loop](skills/dse-loop/SKILL.md) · [idea-discovery-robot](skills/idea-discovery-robot/SKILL.md) · [formula-derivation](skills/formula-derivation/SKILL.md) · [paper-illustration](skills/paper-illustration/SKILL.md)
 
-🌐 **External Projects & Docs (6):** [open-source-hardening-skills](https://github.com/zeyuzhangzyz/open-source-hardening-skills) · [CitationClaw](https://github.com/VisionXLab/CitationClaw) · [OpenClaw Adaptation Guide](docs/OPENCLAW_ADAPTATION.md) · [Cursor Adaptation Guide](docs/CURSOR_ADAPTATION.md) · [Codex+Claude Review Bridge](docs/CODEX_CLAUDE_REVIEW_GUIDE.md) · [paper-illustration](skills/paper-illustration/SKILL.md)
+🌐 **External Projects & Docs (9):** [open-source-hardening-skills](https://github.com/zeyuzhangzyz/open-source-hardening-skills) · [CitationClaw](https://github.com/VisionXLab/CitationClaw) · [auto-hparam-tuning](https://github.com/zxh0916/auto-hparam-tuning) · [Antigravity Adaptation Guide](docs/ANTIGRAVITY_ADAPTATION.md) · [OpenClaw Adaptation Guide](docs/OPENCLAW_ADAPTATION.md) · [Cursor Adaptation Guide](docs/CURSOR_ADAPTATION.md) · [Codex+Claude Review Bridge](docs/CODEX_CLAUDE_REVIEW_GUIDE.md) · [Trae Adaptation Guide](docs/TRAE_ARIS_RUNBOOK_EN.md) · [paper-illustration](skills/paper-illustration/SKILL.md)
 
 > 🙌 Thanks to every contributor! We fold the tables below to keep the README readable — but every skill and project here is equally valued. PRs always welcome!
 
 <details>
-<summary><b>🎉 Community Skills (11)</b> — click to expand</summary>
+<summary><b>🎉 Community Skills (12)</b> — click to expand</summary>
 
 | Name | Domain | Description | Codex MCP? |
 |------|--------|-------------|-----------|
@@ -178,20 +262,24 @@ Domain-specific skills and external projects contributed by the community. PRs w
 | 🏗️ [`dse-loop`](skills/dse-loop/SKILL.md) | Architecture / EDA | Autonomous design space exploration — iteratively run, analyze, and tune parameters (gem5, Yosys, etc.) | No |
 | 🤖 [`idea-discovery-robot`](skills/idea-discovery-robot/SKILL.md) | Robotics / Embodied AI | Workflow 1 adaptation — grounds idea discovery in embodiment, benchmark, sim2real path, and real-robot safety constraints | Yes |
 | 📐 [`mermaid-diagram`](skills/mermaid-diagram/SKILL.md) | General | Mermaid diagrams (20+ types) — free alternative to `paper-illustration`, no API key needed | No |
+| 🔢 [`formula-derivation`](skills/formula-derivation/SKILL.md) | General | Research formula development — derivation, verification, and LaTeX formatting | No |
 
 </details>
 
 <details>
-<summary><b>🌐 External Projects & Docs (6)</b> — click to expand</summary>
+<summary><b>🌐 External Projects & Docs (9)</b> — click to expand</summary>
 
 | Name | Domain | Description |
 |------|--------|-------------|
 | 🛡️ [open-source-hardening-skills](https://github.com/zeyuzhangzyz/open-source-hardening-skills) | DevOps / OSS | 10-skill pipeline to harden research code into production-ready open-source projects — audit, refactor, test, CI, docs, review |
 | 📊 [CitationClaw](https://github.com/VisionXLab/CitationClaw) | General | Citation impact analysis — input paper title → citation crawling, scholar identification, tiered analysis, HTML dashboard |
+| 🚀 [Antigravity Adaptation Guide](docs/ANTIGRAVITY_ADAPTATION.md) | General | Use ARIS skills in [Google Antigravity](https://antigravity.google/) — native SKILL.md support, dual model (Claude Opus 4.6 / Gemini 3.1 Pro), MCP setup, EN + [CN](docs/ANTIGRAVITY_ADAPTATION_CN.md) guides |
 | 🐾 [OpenClaw Adaptation Guide](docs/OPENCLAW_ADAPTATION.md) | General | Use ARIS workflow methodology in [OpenClaw](https://github.com/All-Hands-AI/OpenHands) — skill-to-stage mapping, file-based orchestration, no Claude Code CLI needed |
 | 🖱️ [Cursor Adaptation Guide](docs/CURSOR_ADAPTATION.md) | General | Use ARIS skills in [Cursor](https://www.cursor.com/) — `@`-reference skills, MCP setup, workflow mapping, state file recovery across sessions |
+| 🖥️ [Trae Adaptation Guide](docs/TRAE_ARIS_RUNBOOK_EN.md) | General | Use ARIS skills in [Trae](https://www.trae.ai/) (ByteDance AI IDE) — EN + CN guides |
 | 🎨 [`paper-illustration`](skills/paper-illustration/SKILL.md) | General | AI-generated architecture diagrams via Gemini. Built on [PaperBanana](https://github.com/dwzhu-pku/PaperBanana). Integrated into Workflow 3 |
 | 🤖 [`skills-codex`](skills/skills-codex/) | General | Full ARIS skill set mirrored for Codex CLI, including `experiment-bridge`, `grant-proposal`, and `paper-illustration` |
+| 🎛️ [auto-hparam-tuning](https://github.com/zxh0916/auto-hparam-tuning) | General | Automatic hyperparameter tuning — AI agent reads project, plans strategy, runs experiments, analyzes TensorBoard, learns from results. Hydra-based |
 | 🔁 [Codex+Claude Review Bridge](docs/CODEX_CLAUDE_REVIEW_GUIDE.md) | General | Codex executes + Claude reviews via local `claude-review` MCP bridge with async polling |
 
 </details>
@@ -204,16 +292,17 @@ These skills compose into a full research lifecycle. The four workflows can be u
 - **Have a plan, need to implement and run?** Workflow 1.5 → `/experiment-bridge`
 - **Already have results, need iterative improvement?** Workflow 2 → `/auto-review-loop`
 - **Ready to write the paper?** Workflow 3 → `/paper-writing` (or step by step: `/paper-plan` → `/paper-figure` → `/paper-write` → `/paper-compile` → `/auto-paper-improvement-loop`)
-- **Full pipeline?** Workflow 1 → 1.5 → 2 → 3 → `/research-pipeline` — from literature survey all the way to submission
+- **Got reviews back? Need to rebuttal?** Workflow 4 → `/rebuttal` — parse reviews, draft safe rebuttal, follow-up rounds
+- **Full pipeline?** Workflow 1 → 1.5 → 2 → 3 → submit → 4 → `/research-pipeline` + `/rebuttal` — from idea to acceptance
 
 > ⚠️ **Important:** These tools accelerate research, but they don't replace your own critical thinking. Always review generated ideas with your domain expertise, question the assumptions, and make the final call yourself. The best research comes from human insight + AI execution, not full autopilot.
 
 ### Full Pipeline 🚀
 
 ```
-/research-lit → /idea-creator → /novelty-check → /research-refine → /experiment-bridge → /auto-review-loop → /paper-plan → /paper-figure → /paper-write → /auto-paper-improvement-loop → submit
-  (survey)      (brainstorm)    (verify novel)   (refine method)   (implement+deploy)  (review & fix)      (outline)     (plots)        (LaTeX+PDF)     (review ×2 + format)     (done!)
-  ├────────────── Workflow 1: Idea Discovery ──────────────┤ ├ Workflow 1.5 ─┤ ├── Workflow 2 ──┤   ├──────────────── Workflow 3: Paper Writing ──────────────────┤
+/research-lit → /idea-creator → /novelty-check → /research-refine → /experiment-bridge → /auto-review-loop → /paper-writing → submit → /rebuttal → accept! 🎉
+  (survey)      (brainstorm)    (verify novel)   (refine method)   (implement+deploy)  (review & fix)      (write paper)   (send)   (reply to reviewers)
+  ├────────────── Workflow 1: Idea Discovery ──────────────┤ ├ Workflow 1.5 ─┤ ├── Workflow 2 ──┤ ├── Workflow 3 ──┤         ├── Workflow 4 ──┤
 ```
 
 📝 **Blog post:** [梦中科研全流程开源](http://xhslink.com/o/2iV33fYoc7Q)
@@ -438,7 +527,7 @@ Already have an experiment plan (from Workflow 1 or your own)? `/experiment-brid
 
 > **One-command shortcut:** `/paper-writing "NARRATIVE_REPORT.md"` runs this entire workflow automatically.
 
-**Input:** A `NARRATIVE_REPORT.md` describing the research: claims, experiments, results, figures. The more detailed the narrative (especially figure descriptions and quantitative results), the better the output. See [`docs/NARRATIVE_REPORT_EXAMPLE.md`](docs/NARRATIVE_REPORT_EXAMPLE.md) for a complete example.
+**Input:** A `NARRATIVE_REPORT.md` describing the research: claims, experiments, results, figures. The more detailed the narrative (especially figure descriptions and quantitative results), the better the output. See [`templates/NARRATIVE_REPORT_TEMPLATE.md`](templates/NARRATIVE_REPORT_TEMPLATE.md) for a complete example.
 
 **Output:** A submission-ready `paper/` directory with LaTeX source, clean `.bib` (only cited entries), and compiled PDF.
 
@@ -451,7 +540,9 @@ Already have an experiment plan (from Workflow 1 or your own)? `/experiment-brid
 - ✂️ **De-AI polish** — removes AI writing patterns (delve, pivotal, landscape...)
 - 🎯 **Page verification** — `pdftotext`-based precise check that main body fits page limit
 
-> ⚠️ **Figure generation scope:** `/paper-figure` auto-generates **data-driven plots** (training curves, bar charts, heatmaps) and **comparison tables** from JSON/CSV. For **architecture diagrams and method figures**, set `illustration: true` to enable `/paper-illustration` (requires `GEMINI_API_KEY`) — it uses a Claude→Gemini→Nano Banana Pro pipeline to generate publication-quality diagrams automatically. Without `illustration: true`, architecture diagrams must be created manually (draw.io, Figma, TikZ).
+> ⚠️ **Figure generation scope:** `/paper-figure` auto-generates **data-driven plots** (training curves, bar charts, heatmaps) and **comparison tables** from JSON/CSV. For **architecture diagrams and method figures**: `illustration: gemini` (default) uses Claude→Gemini→Nano Banana Pro for publication-quality diagrams; `illustration: mermaid` generates Mermaid diagrams for free; `illustration: false` skips AI figures entirely.
+>
+> **Gemini API setup** (for `illustration: gemini`): Get your API key at [Google AI Studio](https://aistudio.google.com/apikey), then set it as an environment variable: `export GEMINI_API_KEY="your-key"`. Or add to your shell profile (`~/.zshrc` / `~/.bashrc`). No other dependencies needed.
 
 **Tested end-to-end:** Generated a 9-page ICLR 2026 theory paper (7 sections, 29 citations, 4 figures, 2 comparison tables) from a single NARRATIVE_REPORT.md — zero compilation errors, zero undefined references.
 
@@ -505,6 +596,61 @@ After Workflow 3 generates the paper, `/auto-paper-improvement-loop` runs 2 roun
 8. Tightened `itemize` environments
 
 </details>
+
+### Workflow 4: Rebuttal 📝 (reply to reviewers safely)
+
+> **"Reviews are in. Help me draft a safe, grounded rebuttal."**
+
+Got reviews back? `/rebuttal` parses them, builds a strategy, and drafts a venue-compliant response:
+
+1. 📋 **Parse** — normalize reviews, validate venue rules (character limit, text-only, etc.)
+2. 🔍 **Atomize** — split each review into issue cards (type, severity, reviewer stance)
+3. 🗺️ **Strategize** — global themes, per-reviewer priorities, character budget, blocked claims
+4. 🧪 **Evidence sprint** — if `auto experiment: true`, auto-run supplementary experiments via `/experiment-bridge`
+5. ✍️ **Draft** — global opener + numbered per-reviewer responses + closing for meta-reviewer
+6. 🛡️ **Safety check** — 6 lints: coverage, provenance, commitment, tone, consistency, limit
+7. 🔬 **GPT-5.4 stress test** — internal skeptical review of the draft
+8. 📄 **Finalize** — two outputs: `PASTE_READY.txt` (exact character count) + `REBUTTAL_DRAFT_rich.md` (extended version for manual editing)
+9. 🔄 **Follow-up rounds** — delta replies for reviewer discussions, technically escalating
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   Workflow 4: Rebuttal                            │
+│                                                                  │
+│   Reviews arrive                                                 │
+│         │                                                        │
+│         ▼                                                        │
+│   ┌──────────┐     ┌──────────┐     ┌──────────┐               │
+│   │ Parse &  │────▶│ Strategy │────▶│ Evidence  │               │
+│   │ atomize  │     │ plan     │     │ sprint    │               │
+│   │ reviews  │     │          │     │ (optional)│               │
+│   └──────────┘     └──────────┘     └──────────┘               │
+│                                          │                       │
+│                                          ▼                       │
+│   ┌──────────┐     ┌──────────┐     ┌──────────┐               │
+│   │ Finalize │◀────│ GPT-5.4  │◀────│ Draft    │               │
+│   │ 2 versions│    │ stress   │     │ rebuttal │               │
+│   │          │     │ test     │     │          │               │
+│   └──────────┘     └──────────┘     └──────────┘               │
+│         │                                                        │
+│         ▼                                                        │
+│   PASTE_READY.txt (strict) + RICH.md (extended)                  │
+│         │                                                        │
+│         ▼                                                        │
+│   Follow-up rounds (delta replies, per-reviewer threads)         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Skills involved:** `rebuttal`
+
+> 💡 **Quick mode:** `/rebuttal — quick mode: true` stops after parsing + strategy (Phase 0-3). See what reviewers want before committing to a full draft.
+
+> ⚙️ `VENUE`, `AUTO_EXPERIMENT`, `QUICK_MODE`, `MAX_STRESS_TEST_ROUNDS` are configurable — see [Customization](#%EF%B8%8F-customization).
+
+**Three safety gates — rebuttal will NOT finalize if any fails:**
+- 🔒 **Provenance** — every claim maps to paper/review/user-confirmed result. No fabrication.
+- 🔒 **Commitment** — every promise is user-approved. No overpromising.
+- 🔒 **Coverage** — every reviewer concern is tracked. Nothing disappears.
 
 ---
 
@@ -561,6 +707,12 @@ After Workflow 3 generates the paper, `/auto-paper-improvement-loop` runs 2 roun
 | ├ 🔨 [`paper-compile`](skills/paper-compile/SKILL.md) | Compile LaTeX to PDF, auto-fix errors, submission readiness checks | No |
 | └ 🔄 [`auto-paper-improvement-loop`](skills/auto-paper-improvement-loop/SKILL.md) | 2-round content review + format check (4/10 → 8.5/10) | Yes |
 
+### 📝 Workflow 4: Rebuttal
+
+| Skill | Description | Codex MCP? |
+|-------|-------------|:---:|
+| 📝 **[`rebuttal`](skills/rebuttal/SKILL.md)** | Parse reviews → atomize → strategy → draft → safety check → stress test → finalize (2 versions) → follow-up | Yes |
+
 ### 🛠️ Standalone / Utility
 
 | Skill | Description | Codex MCP? |
@@ -608,6 +760,24 @@ cp -r skills/* ~/.claude/skills/
 cp -r skills/auto-review-loop ~/.claude/skills/
 cp -r skills/research-lit ~/.claude/skills/
 ```
+
+### Update Skills
+
+```bash
+cd Auto-claude-code-research-in-sleep
+git pull
+
+# Option A: Full update (overwrites all skills with latest version)
+cp -r skills/* ~/.claude/skills/
+
+# Option B: Safe update (only add NEW skills, keep your customizations)
+cp -rn skills/* ~/.claude/skills/
+
+# Option C: Update specific skills only
+cp -r skills/experiment-bridge ~/.claude/skills/
+```
+
+> 💡 **Which option?** Use **A** if you haven't customized any skills. Use **B** if you've modified skills locally (new skills get added, your changes are preserved — but you'll miss upstream bug fixes in modified files). Use **C** to selectively update.
 
 ### Usage
 
@@ -990,9 +1160,12 @@ Skills are plain Markdown files. Fork and customize:
 | `HUMAN_CHECKPOINT` | false | When `true`, pause after each review round for approval | → `auto-review-loop` |
 | `WANDB` | false | Auto-add W&B logging to experiments | → `experiment-bridge` → `run-experiment` |
 | `CODE_REVIEW` | true | GPT-5.4 reviews experiment code before deployment | → `experiment-bridge` |
-| `ILLUSTRATION` | false | Auto-generate method diagrams via Gemini. Requires `GEMINI_API_KEY` | → `paper-writing` → `paper-illustration` |
+| `BASE_REPO` | false | GitHub repo URL to clone as base codebase for experiments | → `experiment-bridge` |
+| `COMPACT` | false | Generate compact summary files for short-context models and session recovery | → all workflows |
+| `REF_PAPER` | false | Reference paper (PDF path or URL) to base ideas on. Summarized first, then used as context | → `idea-discovery` |
+| `ILLUSTRATION` | `gemini` | AI illustration: `gemini` (default), `mermaid` (free), or `false` (skip) | → `paper-writing` |
 
-Override inline: `/research-pipeline "topic" — auto proceed: false, wandb: true, illustration: true`
+Override inline: `/research-pipeline "topic" — auto proceed: false, illustration: mermaid`
 
 ### Auto Review Loop (`auto-review-loop`)
 
@@ -1024,8 +1197,9 @@ Override inline: `/idea-discovery "topic" — pilot budget: 4h per idea, sources
 | `SANITY_FIRST` | true | Run smallest experiment first to catch setup bugs before full deployment |
 | `MAX_PARALLEL_RUNS` | 4 | Maximum experiments to deploy in parallel (limited by available GPUs) |
 | `WANDB` | false | Auto-add W&B logging. Requires `wandb_project` in CLAUDE.md |
+| `BASE_REPO` | false | GitHub repo URL to clone as base codebase for experiments |
 
-Override inline: `/experiment-bridge — code review: false, wandb: true`
+Override inline: `/experiment-bridge — base repo: https://github.com/org/project`
 
 ### Literature Search (`research-lit`)
 
@@ -1044,12 +1218,12 @@ Override inline: `/research-lit "topic" — sources: zotero, web`, `/research-li
 | Constant | Default | Description |
 |----------|---------|-------------|
 | `DBLP_BIBTEX` | true | Fetch real BibTeX from DBLP/CrossRef instead of LLM-generated entries |
-| `TARGET_VENUE` | `ICLR` | Target venue format: `ICLR`, `NeurIPS`, `ICML` |
+| `TARGET_VENUE` | `ICLR` | Target venue: `ICLR`, `NeurIPS`, `ICML`, `CVPR`, `ACL`, `AAAI`, `ACM` |
 | `ANONYMOUS` | true | Use anonymous author block for blind review |
 | `MAX_PAGES` | 9 | Main body page limit (excluding references) |
-| `ILLUSTRATION` | false | Auto-generate architecture/method diagrams via Gemini. Requires `GEMINI_API_KEY` |
+| `ILLUSTRATION` | `gemini` | AI illustration mode: `gemini` (default, needs `GEMINI_API_KEY`), `mermaid` (free), or `false` (skip) |
 
-Override inline: `/paper-write — target venue: NeurIPS, illustration: true`
+Override inline: `/paper-write — target venue: NeurIPS, illustration: mermaid`
 
 ### General (all skills using Codex MCP)
 
@@ -1076,8 +1250,10 @@ Don't have Claude / OpenAI API access? You can swap in other models — same cro
 | **Alt E** 🆓 | DeepSeek-V3.1 / Qwen3-Coder | DeepSeek-R1 / Qwen3-235B | No | No | [MODELSCOPE_GUIDE](docs/MODELSCOPE_GUIDE.md) |
 | **Alt F** | Codex CLI (GPT-5.4) | Codex `spawn_agent` (GPT-5.4) | No | Yes | [skills-codex/](skills/skills-codex/) |
 | **Alt G** 🆕 | Codex CLI | Claude Code CLI (`claude-review` MCP) | No* | No* | [CODEX_CLAUDE_REVIEW_GUIDE](docs/CODEX_CLAUDE_REVIEW_GUIDE.md) |
+| **Alt H** 🆕 | Antigravity (Claude Opus 4.6 / Gemini 3.1 Pro) | GPT-5.4 (Codex MCP) or any via llm-chat | No | Optional | [ANTIGRAVITY_ADAPTATION](docs/ANTIGRAVITY_ADAPTATION.md) |
+| **Alt I** 🆕 | Codex CLI | Gemini direct API (`gemini-review` MCP) | No | No | [CODEX_GEMINI_REVIEW_GUIDE](docs/CODEX_GEMINI_REVIEW_GUIDE.md) |
 
-**Alt C** supports tested providers: GLM (Z.ai), Kimi (Moonshot), LongCat (Meituan) as executors; DeepSeek, MiniMax as reviewers. Any OpenAI-compatible API should also work via the generic [`llm-chat`](mcp-servers/llm-chat/) MCP server. **Alt D** uses [Alibaba Coding Plan](https://bailian.console.aliyun.com/) — one API key for both executor and reviewer, 4 models included (Kimi, Qwen, GLM, MiniMax). **Alt E** uses [ModelScope](https://www.modelscope.cn/) — **free** (2000 calls/day), one key, no automation restrictions. **Alt G** keeps Codex as executor but swaps the reviewer to Claude Code CLI via the local `claude-review` MCP bridge, with async polling for long paper/review prompts.
+**Alt C** supports tested providers: GLM (Z.ai), Kimi (Moonshot), LongCat (Meituan) as executors; DeepSeek, MiniMax as reviewers. Any OpenAI-compatible API should also work via the generic [`llm-chat`](mcp-servers/llm-chat/) MCP server. **Alt D** uses [Alibaba Coding Plan](https://bailian.console.aliyun.com/) — one API key for both executor and reviewer, 4 models included (Kimi, Qwen, GLM, MiniMax). **Alt E** uses [ModelScope](https://www.modelscope.cn/) — **free** (2000 calls/day), one key, no automation restrictions. **Alt G** keeps Codex as executor but swaps the reviewer to Claude Code CLI via the local `claude-review` MCP bridge, with async polling for long paper/review prompts. **Alt H** uses [Google Antigravity](https://antigravity.google/) as the executor with native SKILL.md support — choose Claude Opus 4.6 (Thinking) or Gemini 3.1 Pro (high) as the execution model. **Alt I** keeps Codex as executor, adds only a thin `skills-codex-gemini-review` overlay, and routes the reviewer-aware predefined skills through the local `gemini-review` MCP bridge with direct Gemini API by default. It is the closest Gemini analogue to the existing Codex+Claude review path, while minimizing skill changes and now also covers poster PNG review via the same bridge. Free-tier availability, rate limits, and data-use terms remain subject to Google's current policy.
 
 \* Alt G normally relies on local Codex CLI and Claude Code CLI logins. Direct API keys are optional, not required.
 
@@ -1165,20 +1341,19 @@ claude
 - [x] **Zotero MCP integration** — `/research-lit` searches Zotero collections, reads annotations/highlights, exports BibTeX. Recommended: [zotero-mcp](https://github.com/54yyyu/zotero-mcp) (1.8k⭐). See [setup guide](#-zotero-integration-optional)
 - [x] **Obsidian integration** — `/research-lit` searches Obsidian vault for research notes, tagged references, wikilinks. Recommended: [mcpvault](https://github.com/bitbonsai/mcpvault) (760⭐) + [obsidian-skills](https://github.com/kepano/obsidian-skills) (13.6k⭐). See [setup guide](#-obsidian-integration-optional)
 - [x] **More executor × reviewer combinations** — any OpenAI-compatible API works via [`llm-chat`](mcp-servers/llm-chat/) MCP server. GLM, MiniMax, Kimi, LongCat, DeepSeek all tested — no Claude or OpenAI API required
+- [x] **GitHub-based code sync** — `/run-experiment` supports `code_sync: git` (`git push` → `ssh "git pull"`)
+- [x] **W&B integration** — auto `wandb.init()` + `wandb.log()` when `wandb: true`. `/monitor-experiment` pulls training curves
+- [x] **ModelScope integration** — [free](docs/MODELSCOPE_GUIDE.md) (2000 calls/day), one API key, dual-protocol
 
 </details>
 
 ### Planned
 
-- [x] **GitHub-based code sync** — `/run-experiment` now supports `code_sync: git` in CLAUDE.md: `git push` locally → `ssh server "git pull"` on the server. Default remains `rsync` (zero breaking changes)
-- [x] **W&B integration** — `/run-experiment` auto-adds `wandb.init()` + `wandb.log()` to training scripts when `wandb: true` in CLAUDE.md. `/monitor-experiment` pulls training curves from W&B for richer diagnostics. Default off, zero impact when unconfigured
 - [ ] **Daemon mode** — auto-restart Claude Code session via `launchd`/`systemd` for true unattended operation. Currently the orchestration layer requires an active CLI session; state files (`REVIEW_STATE.json`, `AUTO_REVIEW.md`) support resuming across sessions, but relaunch is manual ([#11](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep/issues/11))
-- [ ] **Reference-style figure generation** — read figures from reference PDFs → identify chart type, color scheme, layout → generate same-style figures with your own data. Two sub-goals:
-  - **Data charts** (medium): extract color/font style from reference → apply as matplotlib rcParams → generate same-style plots with your data
-  - ~~**Method diagrams** (hard)~~: ✅ Solved by [`paper-illustration`](skills/paper-illustration/SKILL.md) — Claude→Gemini→Nano Banana Pro pipeline, integrated into Workflow 3
-  - Building blocks: [PaperBanana](https://github.com/dwzhu-pku/PaperBanana) (5-agent framework: Retriever→Stylist→Visualizer→Critic, NeurIPS benchmark), [Nano Banana Pro](https://deepmind.google/models/gemini-image/pro/) (Gemini image model), [FigureLabs](https://www.figurelabs.ai/) (commercial, PDF import). An [OpenClaw version](https://clawhub.ai/skills/paperbanana) exists on ClawHub but needs rewrite for Claude Code (flagged as incomplete + security concerns)
-  - Would enhance `/paper-figure` to accept `— reference: paper.pdf` for style matching
-- [x] **ModelScope integration** — [ModelScope guide](docs/MODELSCOPE_GUIDE.md) added as Alt E. Free (2000 calls/day), one API key, dual-protocol (Anthropic + OpenAI), no automation restrictions. DeepSeek-V3.1 + DeepSeek-R1 recommended
+- [ ] **Reference-style figure generation** — read figures from reference PDFs → identify chart type, color scheme, layout → generate same-style figures with your own data. Sub-goal remaining: **Data charts** (extract color/font style → matplotlib rcParams). Method diagrams ✅ solved by `paper-illustration`
+- [ ] **Workflow execution report** — after each workflow (1/1.5/2/3) completes, auto-generate a structured summary: what was done, key decisions made, experiments run, results obtained, scores, and time spent. Output as `WORKFLOW_REPORT.md` for progress tracking, team reporting, and supervisor updates
+- [ ] **Document-based pipeline input** — support passing a detailed document (e.g., `RESEARCH_BRIEF.md`) as input to `/research-pipeline` or `/idea-discovery` instead of a one-line prompt. Many research directions need nuanced context (prior results, constraints, domain knowledge) that can't fit in a single sentence. The document would be parsed for problem definition, constraints, existing results, and specific requirements
+- [ ] **Auto hyperparameter tuning skill** — rewrite [auto-hparam-tuning](https://github.com/zxh0916/auto-hparam-tuning) as an ARIS SKILL.md. 5-step cycle: understand project → plan tuning strategy → run experiments → analyze metrics (TensorBoard/W&B) → learn and iterate. Would plug into Workflow 1.5 (`/experiment-bridge`) or Workflow 2 (`/auto-review-loop`) when reviewer says "tune hyperparameters"
 
 ## 💬 Community
 
@@ -1206,7 +1381,7 @@ If you use ARIS in your research, please cite:
 
 ![GitHub stars](https://img.shields.io/github/stars/wanshuiyin/Auto-claude-code-research-in-sleep?style=social)
 
-[![Star History Chart](https://api.star-history.com/svg?repos=wanshuiyin/Auto-claude-code-research-in-sleep&type=Date&v=20260318)](https://star-history.com/#wanshuiyin/Auto-claude-code-research-in-sleep&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=wanshuiyin/Auto-claude-code-research-in-sleep&type=Date&v=20260321)](https://star-history.com/#wanshuiyin/Auto-claude-code-research-in-sleep&Date)
 
 ## 🙏 Acknowledgements
 
@@ -1252,6 +1427,11 @@ ARIS wouldn't run on so many platforms without these contributors:
 - 🤖 [@Falling-Flower](https://github.com/Falling-Flower) — adapted all ARIS skills for [Codex CLI](https://github.com/openai/codex) using `spawn_agent`
 - 🔧 [@No-518](https://github.com/No-518) — ongoing maintenance of the Codex skill set, keeping parity with latest updates
 - 🖱️ [@YecanLee](https://github.com/YecanLee) — wrote the [Cursor adaptation guide](docs/CURSOR_ADAPTATION.md) and local GPU setup docs
+- 🏆 [@DefanXue](https://github.com/DefanXue) & [@Monglitay](https://github.com/Monglitay) — first community paper built entirely with ARIS, scored 8/10 at CS conference
+
+**Special Thanks — Architecture & Vision**
+
+- 💡 [@JingxuanKang](https://github.com/JingxuanKang) — beyond code contributions (training-check, result-to-claim, ablation-planner, watchdog, templates, session recovery), deeply shaped ARIS through discussions on architecture design, compact mode, workflow state management, and the vision of what autonomous research workflows should look like. Many of today's core features — from structured project files to context-aware session recovery — grew out of these conversations.
 
 ## License
 

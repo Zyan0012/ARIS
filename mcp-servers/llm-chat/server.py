@@ -90,7 +90,7 @@ def call_llm(messages, model=None):
     debug_log(f"Calling LLM API: {url}")
 
     try:
-        with httpx.Client(timeout=120.0) as client:
+        with httpx.Client(timeout=300.0) as client:
             response = client.post(url, headers=headers, json=payload)
             if response.status_code != 200:
                 error_msg = f"API error {response.status_code}: {response.text[:500]}"
