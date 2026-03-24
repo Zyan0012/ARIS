@@ -72,6 +72,7 @@ Generate publication-quality illustrations using a **multi-stage workflow** with
 - **OUTPUT_DIR = `figures/ai_generated/`** — Output directory
 - **API_KEY_ENV = `GEMINI_API_KEY`** — Bearer token environment variable
 - **API_BASE_ENV = `GEMINI_BASE_URL`** — Provider base URL, e.g. `https://api.apiplus.org`
+- **REFERENCE_BENCH_ENV = `PAPERBANANA_BENCH_DIR`** — Optional local PaperBananaBench reference library, e.g. `/mnt/d/ML/reference_libraries/PaperBananaBench`
 
 ## CVPR/ICLR/NeurIPS Top-Tier Conference Style Guide
 
@@ -169,6 +170,13 @@ fi
 
 # Create output directory
 mkdir -p figures/ai_generated
+
+# Optional: local PaperBananaBench reference library
+if [ -n "$PAPERBANANA_BENCH_DIR" ] && [ -d "$PAPERBANANA_BENCH_DIR" ]; then
+    echo "PaperBananaBench detected at: $PAPERBANANA_BENCH_DIR"
+else
+    echo "PaperBananaBench not found; continuing without reference retrieval"
+fi
 ```
 
 ### Step 1: Claude Plans the Figure (YOU ARE HERE)
@@ -180,13 +188,61 @@ Parse the input: **$ARGUMENTS**
 Claude's task:
 1. Understand what figure the user wants
 2. Identify all components, connections, data flow
-3. Create a **detailed, structured prompt** for Gemini
-4. Include style requirements AND visual appeal requirements
+3. If `PAPERBANANA_BENCH_DIR` exists, retrieve **up to 3 relevant reference figures** and summarize their layout/style patterns
+4. Create a **detailed, structured prompt** for Gemini
+5. Include style requirements AND visual appeal requirements
+
+### Step 1A: Optional Local Reference Retrieval from PaperBananaBench
+
+If `PAPERBANANA_BENCH_DIR` exists, Claude should use it as a **local reference library**, not as a required dependency.
+
+Goals:
+- Find a few diagrams with similar structure or visual style
+- Extract reusable layout priors: pipeline direction, grouping style, arrow labeling, block hierarchy, color usage
+- Feed those priors into the final drawing prompt without copying exact content
+
+Recommended retrieval procedure:
+
+```bash
+BENCH_DIR="${PAPERBANANA_BENCH_DIR:-/mnt/d/ML/reference_libraries/PaperBananaBench}"
+
+if [ -d "$BENCH_DIR" ]; then
+  echo "Searching local PaperBananaBench references from $BENCH_DIR"
+  find "$BENCH_DIR" -maxdepth 4 \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.pdf" \) | head -50 > /tmp/paperbanana_candidates.txt
+  find "$BENCH_DIR" -maxdepth 4 \( -iname "test.json" -o -iname "ref.json" -o -iname "*.json" \) | head -20 > /tmp/paperbanana_metadata_candidates.txt
+fi
+```
+
+Claude should then:
+1. Inspect candidate filenames and any nearby metadata
+2. Select the **3 most relevant** references for the requested figure type
+3. Write a short `figures/ai_generated/reference_brief.txt` with:
+   - `reference_id`
+   - `why relevant`
+   - `layout pattern`
+   - `style cues to borrow`
+   - `elements to avoid`
+
+Use the references only for:
+- layout priors
+- grouping conventions
+- professional visual standards
+
+Do **not**:
+- copy text labels verbatim
+- imitate any reference too closely
+- depend on the benchmark being complete
 
 **Prompt Template for Claude to generate:**
 
 ```
 Create a PROFESSIONAL, VISUALLY APPEALING publication-quality academic diagram following CVPR/ICLR/NeurIPS standards.
+
+## Reference Priors (if available from PaperBananaBench)
+- Reuse only high-level layout and styling patterns from the retrieved reference brief
+- Prefer the best matching pipeline structure
+- Borrow grouping/spacing conventions if they improve clarity
+- Never copy exact labels or figure content from references
 
 ## Visual Style: 科研风格 (Academic Professional Style)
 ### 目标：平衡 — 既不保守也不花哨
@@ -730,7 +786,7 @@ figures/ai_generated/
 
 | Stage | Model | Purpose |
 |-------|-------|---------|
-| Step 1 | Claude | Parse request, create initial prompt |
+| Step 1 | Claude | Parse request, optionally retrieve local references, create initial prompt |
 | Step 2 | gemini-3-pro | Layout optimization (positioning, spacing, grouping) |
 | Step 3 | gemini-3-pro | CVPR/NeurIPS style verification |
 | Step 4 | gemini-3-pro-image-preview (Paperbanana) | High-quality image rendering |
