@@ -10,9 +10,9 @@ Draft a LaTeX paper based on: **$ARGUMENTS**
 ## Constants
 
 - **REVIEWER_MODEL = `gpt-5.4`** — Model used via a secondary Codex agent for section review. Must be an OpenAI model.
-- **TARGET_VENUE = `ICLR`** — Default venue. Supported: `ICLR`, `NeurIPS`, `ICML`. Determines style file and formatting.
-- **ANONYMOUS = true** — If true, use anonymous author block. Set `false` for camera-ready.
-- **MAX_PAGES = 9** — Main body page limit. Counts from first page to end of Conclusion section. References and appendix are NOT counted.
+- **TARGET_VENUE = `ICLR`** — Default venue. Supported: `ICLR`, `NeurIPS`, `ICML`, `CVPR` (also ICCV/ECCV), `ACL` (also EMNLP/NAACL), `AAAI`, `ACM` (ACM MM, SIGIR, KDD, CHI, etc.), `IEEE_JOURNAL` (IEEE Transactions / Letters, e.g., T-PAMI, JSAC, TWC, TCOM, TSP, TIP), `IEEE_CONF` (IEEE conferences, e.g., ICC, GLOBECOM, INFOCOM, ICASSP). Determines style file and formatting.
+- **ANONYMOUS = true** — If true, use anonymous author block. Set `false` for camera-ready. Note: most IEEE venues do NOT use anonymous submission — set `false` for IEEE.
+- **MAX_PAGES = 9** — Main body page limit. For ML conferences: counts from first page to end of Conclusion section, references and appendix NOT counted. **For IEEE venues: references ARE counted toward the page limit.** Typical limits: IEEE journal = no strict limit (but 12-14 pages typical for Transactions, 4-5 for Letters), IEEE conference = 5-8 pages including references.
 - **DBLP_BIBTEX = true** — Fetch real BibTeX from DBLP/CrossRef instead of LLM-generated entries. Eliminates hallucinated citations. Zero install required. Set `false` to use legacy behavior (LLM search + `[VERIFY]` markers).
 
 ## Inputs
@@ -24,6 +24,16 @@ Draft a LaTeX paper based on: **$ARGUMENTS**
 5. **Bibliography** — existing `.bib` file, or will create one
 
 If no PAPER_PLAN.md exists, ask the user to run `/paper-plan` first or provide a brief outline.
+
+## Orchestra-Guided Writing Overlay
+
+Keep the existing workflow, file layout, and defaults. Use the shared references below only when they improve writing quality:
+
+- Read `../shared-references/writing-principles.md` before drafting the Abstract, Introduction, Related Work, or when prose feels generic
+- Read `../shared-references/venue-checklists.md` during the final write-up and submission-readiness pass
+- Read `../shared-references/citation-discipline.md` only when the built-in DBLP/CrossRef workflow is insufficient
+
+These references are support material, not extra workflow phases.
 
 ## Templates
 
@@ -51,6 +61,20 @@ The skill includes conference templates in `templates/`. Select based on TARGET_
 % Use [accepted] for camera-ready
 ```
 
+**IEEE Journal** (Transactions, Letters):
+```latex
+\documentclass[journal]{IEEEtran}
+\usepackage{cite}  % IEEE uses \cite{}, NOT natbib
+% Author block uses \author{Name~\IEEEmembership{Member,~IEEE}}
+```
+
+**IEEE Conference** (ICC, GLOBECOM, INFOCOM, ICASSP, etc.):
+```latex
+\documentclass[conference]{IEEEtran}
+\usepackage{cite}  % IEEE uses \cite{}, NOT natbib
+% Author block uses \IEEEauthorblockN / \IEEEauthorblockA
+```
+
 ### Project Structure
 
 Generate this file structure:
@@ -58,7 +82,7 @@ Generate this file structure:
 ```
 paper/
 ├── main.tex                    # master file (includes sections)
-├── iclr2026_conference.sty     # or neurips_2025.sty / icml2025.sty
+├── iclr2026_conference.sty     # or neurips_2025.sty / icml2025.sty / IEEEtran.cls + IEEEtran.bst
 ├── math_commands.tex           # shared math macros
 ├── references.bib              # bibliography (filtered — only cited entries)
 ├── sections/
@@ -118,11 +142,14 @@ Process sections in order. For each section:
 2. **Read NARRATIVE_REPORT.md** — extract relevant content, findings, and quantitative results
 3. **Draft content** — write complete LaTeX (not placeholders)
 4. **Insert figures/tables** — use snippets from `figures/latex_includes.tex`
-5. **Add citations** — use `\citep{}` / `\citet{}` (all three venues use `natbib`)
+5. **Add citations** — for ML conferences (ICLR/NeurIPS/ICML/CVPR/ACL/AAAI): use `\citep{}` / `\citet{}` (natbib). **For IEEE venues**: use `\cite{}` (numeric style via `cite` package). Never mix natbib and cite commands.
+
+Before drafting the front matter, re-read the one-sentence contribution from `PAPER_PLAN.md`. The Abstract and Introduction should make that takeaway obvious before the reader reaches the full method.
 
 #### Section-Specific Guidelines
 
 **§0 Abstract:**
+- Use the 5-part flow from `../shared-references/writing-principles.md`: what, why hard, how, evidence, strongest result
 - Must be self-contained (understandable without reading the paper)
 - Structure: problem → approach → key result → implication
 - Include one concrete quantitative result
@@ -210,12 +237,14 @@ If both DBLP and CrossRef return nothing, mark the entry with `% [VERIFY]` comme
 
 **Why this matters:** LLM-generated BibTeX frequently hallucinates venue names, page numbers, or even co-authors. DBLP and CrossRef return publisher-verified metadata. Upstream skills (`/research-lit`, `/novelty-check`) may mention papers from LLM memory — this fetch chain is the gate that prevents hallucinated citations from entering the final `.bib`.
 
+If the DBLP/CrossRef flow is not enough, load `../shared-references/citation-discipline.md` for stricter fallback rules before adding placeholders.
+
 **Automated bib cleaning** — use this Python pattern to extract only cited entries:
 
 ```python
 import re
-# 1. Grep all \citep{...} and \citet{...} from all .tex files
-# 2. Extract unique keys (handle multi-cite like \citep{a,b,c})
+# 1. Grep all \citep{...}, \citet{...}, and \cite{...} from all .tex files
+# 2. Extract unique keys (handle multi-cite like \citep{a,b,c} or \cite{a,b,c})
 # 3. Parse the full .bib file, keep only entries whose key is in the cited set
 # 4. Write the filtered bib
 ```
@@ -232,6 +261,14 @@ This prevents bib bloat (e.g., 948 lines → 215 lines in testing).
 ### Step 5: De-AI Polish (from kgraph57/paper-writer-skill)
 
 After drafting all sections, scan for common AI writing patterns and fix them:
+
+First apply the sentence-level clarity rules from `../shared-references/writing-principles.md`:
+
+- keep subject and verb close together
+- put familiar context first and new information later
+- place the most important information near the end of the sentence
+- let each paragraph do one job
+- use verbs for actions instead of nominalized nouns
 
 **Content patterns to fix:**
 - Significance inflation ("groundbreaking", "revolutionary" → use measured language)
@@ -286,7 +323,7 @@ After drafting all sections:
 Before declaring done:
 
 - [ ] All `\ref{}` and `\label{}` match (no undefined references)
-- [ ] All `\citep{}` / `\citet{}` have corresponding BibTeX entries
+- [ ] All citation commands (`\citep{}`/`\citet{}` for ML conferences, `\cite{}` for IEEE) have corresponding BibTeX entries
 - [ ] No author information in anonymous mode
 - [ ] Figure/table numbering is correct
 - [ ] Page count within MAX_PAGES (main body to Conclusion end)
@@ -298,6 +335,8 @@ Before declaring done:
 - [ ] references.bib contains ONLY cited entries (no bloat)
 - [ ] **No stale section files** — every .tex in `sections/` is `\input`ed by `main.tex`
 - [ ] **Section files match main.tex** — file numbering and `\input` paths are consistent
+- [ ] Venue-specific required sections/checklists satisfied (read `../shared-references/venue-checklists.md` if needed)
+- [ ] A skim reader can recover the main claim from the title, abstract, introduction, and Figure 1/captions
 
 ## Key Rules
 
@@ -309,13 +348,18 @@ Before declaring done:
 - **Every claim must cite evidence** — cross-reference the Claims-Evidence Matrix
 - **Compile-ready** — the output should compile with `latexmk` without errors (modulo missing figures)
 - **No over-claiming** — use hedging language ("suggests", "indicates") for weak evidence
-- **Venue style matters** — all three venues (ICLR/NeurIPS/ICML) use `natbib` (`\citep`/`\citet`)
-- **Page limit = main body to Conclusion** — references and appendix do NOT count
+- **Venue style matters** — ML conferences (ICLR/NeurIPS/ICML) use `natbib` (`\citep`/`\citet`); **IEEE venues use `cite` package (`\cite{}`, numeric)**. Never mix.
+- **Page limit rules differ by venue** — ML conferences: main body to Conclusion, references/appendix NOT counted. **IEEE: references ARE counted toward the page limit.**
 - **Clean bib** — references.bib must only contain entries that are actually `\cite`d
 - **Section count is flexible** — match PAPER_PLAN structure, don't force into 5 sections
 - **Backup before overwrite** — never destroy existing `paper/` directory without backing up
+- **Front-load the contribution** — do not hide the payoff until the experiments or appendix
 
 ## Writing Quality Reference
+
+- `../shared-references/writing-principles.md` — story framing, abstract/introduction patterns, sentence-level clarity, reviewer reading order
+- `../shared-references/venue-checklists.md` — ICLR/NeurIPS/ICML/IEEE submission requirements to check before declaring done
+- `../shared-references/citation-discipline.md` — stricter fallback for ambiguous citations
 
 Principles from [Research-Paper-Writing-Skills](https://github.com/Master-cai/Research-Paper-Writing-Skills):
 
@@ -333,4 +377,3 @@ De-AI patterns from [kgraph57/paper-writer-skill](https://github.com/kgraph57/pa
 ## Acknowledgements
 
 Writing methodology adapted from [Research-Paper-Writing-Skills](https://github.com/Master-cai/Research-Paper-Writing-Skills) (CCF award-winning methodology). Citation verification from [claude-scholar](https://github.com/Galaxy-Dawn/claude-scholar) and [Imbad0202/academic-research-skills](https://github.com/Imbad0202/academic-research-skills). De-AI polish from [kgraph57/paper-writer-skill](https://github.com/kgraph57/paper-writer-skill). Backup mechanism from [baoyu-skills](https://github.com/jimliu/baoyu-skills).
-

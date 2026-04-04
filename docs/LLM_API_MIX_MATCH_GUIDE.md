@@ -111,7 +111,7 @@
 | 提供商 | LLM_BASE_URL | LLM_MODEL |
 |--------|--------------|-----------|
 | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` |
-| MiniMax | `https://api.minimax.chat/v1` | `MiniMax-M2.5` |
+| MiniMax | `https://api.minimax.io/v1` | `MiniMax-M2.7` |
 
 ---
 
@@ -247,8 +247,8 @@ Codex CLI 使用 OpenAI 的 **Responses API** (`/v1/responses`)，这个 API 只
       "args": ["/Users/yourname/.claude/mcp-servers/llm-chat/server.py"],
       "env": {
         "LLM_API_KEY": "your-minimax-key",
-        "LLM_BASE_URL": "https://api.minimax.chat/v1",
-        "LLM_MODEL": "MiniMax-M2.5"
+        "LLM_BASE_URL": "https://api.minimax.io/v1",
+        "LLM_MODEL": "MiniMax-M2.7"
       }
     }
   }

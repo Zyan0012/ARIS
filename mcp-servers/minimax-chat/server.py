@@ -30,8 +30,20 @@ debug_log(f"MINIMAX_BASE_URL: {os.environ.get('MINIMAX_BASE_URL', 'not set')}")
 debug_log(f"MINIMAX_MODEL: {os.environ.get('MINIMAX_MODEL', 'not set')}")
 
 MINIMAX_API_KEY = os.environ.get("MINIMAX_API_KEY", "")
-MINIMAX_BASE_URL = os.environ.get("MINIMAX_BASE_URL", "https://api.minimax.chat/v1")
-DEFAULT_MODEL = os.environ.get("MINIMAX_MODEL", "MiniMax-M2.5")
+MINIMAX_BASE_URL = os.environ.get("MINIMAX_BASE_URL", "https://api.minimax.io/v1")
+DEFAULT_MODEL = os.environ.get("MINIMAX_MODEL", "MiniMax-M2.7")
+
+# MiniMax requires temperature in (0.0, 1.0]
+def clamp_temperature(temp):
+    """Clamp temperature to MiniMax's allowed range (0.0, 1.0]."""
+    if temp is None:
+        return None
+    temp = float(temp)
+    if temp <= 0.0:
+        return 0.01
+    if temp > 1.0:
+        return 1.0
+    return temp
 
 def log_error(msg):
     try:
@@ -72,7 +84,7 @@ def send_notification(method, params=None):
         notification["params"] = params
     send_response(notification)
 
-def call_minimax(messages, model=None):
+def call_minimax(messages, model=None, temperature=0.7):
     """Call MiniMax Chat Completions API"""
     if not MINIMAX_API_KEY:
         return None, "MINIMAX_API_KEY environment variable not set"
@@ -82,10 +94,12 @@ def call_minimax(messages, model=None):
         "Content-Type": "application/json",
         "Authorization": f"Bearer {MINIMAX_API_KEY}"
     }
+    clamped_temp = clamp_temperature(temperature)
     payload = {
         "model": model or DEFAULT_MODEL,
         "messages": messages,
-        "max_tokens": 4096
+        "max_tokens": 4096,
+        "temperature": clamped_temp
     }
 
     debug_log(f"Calling MiniMax API: {url}")
@@ -150,7 +164,7 @@ def handle_request(request):
             "result": {
                 "tools": [{
                     "name": "minimax_chat",
-                    "description": "Send a message to MiniMax M2.5 model and get a response. Use this for research reviews, code analysis, and general AI tasks.",
+                    "description": "Send a message to MiniMax model and get a response. Use this for research reviews, code analysis, and general AI tasks. Supports MiniMax-M2.7 (default, 204K context) and MiniMax-M2.7-highspeed.",
                     "inputSchema": {
                         "type": "object",
                         "properties": {
@@ -160,12 +174,18 @@ def handle_request(request):
                             },
                             "model": {
                                 "type": "string",
-                                "description": "Model to use (default: MiniMax-M2.5)",
-                                "default": "MiniMax-M2.5"
+                                "description": "Model to use: MiniMax-M2.7 (default, 204K context) or MiniMax-M2.7-highspeed (faster, 204K context)",
+                                "default": "MiniMax-M2.7",
+                                "enum": ["MiniMax-M2.7", "MiniMax-M2.7-highspeed", "MiniMax-M2.5", "MiniMax-M2.5-highspeed"]
                             },
                             "system": {
                                 "type": "string",
                                 "description": "Optional system prompt"
+                            },
+                            "temperature": {
+                                "type": "number",
+                                "description": "Sampling temperature (0.01-1.0). Default: 0.7",
+                                "default": 0.7
                             }
                         },
                         "required": ["prompt"]
@@ -182,6 +202,7 @@ def handle_request(request):
             prompt = arguments.get("prompt", "")
             model = arguments.get("model", DEFAULT_MODEL)
             system = arguments.get("system", "")
+            temperature = arguments.get("temperature", 0.7)
 
             messages = []
             if system:
@@ -189,7 +210,7 @@ def handle_request(request):
             messages.append({"role": "user", "content": prompt})
 
             debug_log(f"Tool call: minimax_chat, prompt length: {len(prompt)}")
-            content, error = call_minimax(messages, model)
+            content, error = call_minimax(messages, model, temperature)
 
             if error:
                 return {

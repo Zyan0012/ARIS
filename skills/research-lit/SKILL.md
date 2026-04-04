@@ -15,6 +15,7 @@ Build a compact but decision-useful literature review by combining:
 - the user's existing library and notes
 - structured arXiv search
 - a local Semantic Scholar skill when available
+- optional Semantic Scholar API search for venue-only papers
 - general web search as fallback and coverage expansion
 
 The output should help downstream skills such as `/idea-discovery`, `/research-refine`, `/experiment-plan`, and `/paper-writing`.
@@ -33,6 +34,16 @@ The output should help downstream skills such as `/idea-discovery`, `/research-r
 
 ## Source Selection
 
+Overrides:
+- `/research-lit "topic" - paper library: ~/my_papers/` -> custom local PDF path
+- `/research-lit "topic" - sources: zotero, local` -> only search Zotero plus local PDFs
+- `/research-lit "topic" - sources: zotero` -> only search Zotero
+- `/research-lit "topic" - sources: web` -> only search the web
+- `/research-lit "topic" - sources: web, semantic` -> web plus local Semantic Scholar skill
+- `/research-lit "topic" - sources: web, semantic-scholar` -> web plus Semantic Scholar API
+- `/research-lit "topic" - arxiv download: true` -> download top relevant arXiv PDFs
+- `/research-lit "topic" - arxiv download: true, max download: 10` -> download up to 10 PDFs
+
 Parse `$ARGUMENTS` for an optional `sources:` directive.
 
 Valid values:
@@ -40,10 +51,15 @@ Valid values:
 - `obsidian`
 - `local`
 - `semantic`
+- `semantic-scholar`
 - `web`
 - `all`
 
 If no directive is provided, use `all`.
+
+Interpretation:
+- `all` means search Zotero, Obsidian, local PDFs, local Semantic Scholar skill, arXiv, and web.
+- `semantic-scholar` is an additional explicit source for the repo's `semantic_scholar_fetch.py`, mainly to cover published venue-only papers beyond arXiv.
 
 Examples:
 
@@ -51,16 +67,21 @@ Examples:
 /research-lit "diffusion models"
 /research-lit "diffusion models - sources: semantic, web"
 /research-lit "offline RL - sources: local, semantic"
+/research-lit "multimodal misinformation - sources: web, semantic-scholar"
+/research-lit "representation learning - sources: all, semantic-scholar"
 ```
 
 ## Source Priority
 
-1. Zotero
-2. Obsidian
-3. Local PDFs
-4. Local Semantic Scholar skill
-5. arXiv
-6. Web search
+| Priority | Source | ID | How to detect | What it provides |
+|----------|--------|----|---------------|-----------------|
+| 1 | Zotero (via MCP) | `zotero` | Try calling any `mcp__zotero__*` tool; if unavailable, skip | Collections, tags, annotations, PDF highlights, BibTeX, semantic search |
+| 2 | Obsidian (via MCP) | `obsidian` | Try calling any `mcp__obsidian-vault__*` tool; if unavailable, skip | Research notes, paper summaries, tagged references, wikilinks |
+| 3 | Local PDFs | `local` | `Glob: papers/**/*.pdf, literature/**/*.pdf` | Raw PDF content (first 3 pages) |
+| 4 | Local Semantic Scholar skill | `semantic` | `~/.codex/skills/semantic-scholar-search/scripts/search.py` or Windows-mounted fallback exists | Direct Semantic Scholar retrieval tuned for the local workflow |
+| 5 | arXiv API | implicit | `arxiv_fetch.py` exists | Structured preprint search and optional PDF download |
+| 6 | Web search | `web` | Always available | arXiv, project pages, Google Scholar snippets, venue pages |
+| 7 | Semantic Scholar API | `semantic-scholar` | `tools/semantic_scholar_fetch.py` exists | Published venue papers with citation counts, venue metadata, and TLDR; runs only when explicitly requested |
 
 Each source is optional. Skip missing sources silently and continue.
 
@@ -79,7 +100,7 @@ Use the WSL-local path first when it exists.
 
 Only fall back to the Windows-mounted path when the WSL-local copy is missing.
 
-### Important rule
+### Important Rule
 
 Do not send the raw user topic directly into keyword extraction when the request is rich or multilingual.
 
@@ -90,7 +111,7 @@ Instead:
 4. Run `search.py direct` for each query.
 5. Merge and deduplicate results by `paperId`.
 
-### Search brief template
+### Search Brief Template
 
 Always write a short internal brief with:
 - topic
@@ -100,7 +121,7 @@ Always write a short internal brief with:
 - time range
 - 2-4 English query strings
 
-### Query rules
+### Query Rules
 
 - Prefer one quoted topic phrase plus 1-3 supporting tokens.
 - Avoid dumping a bag of generic keywords.
@@ -118,7 +139,7 @@ Bad:
 multimodal fake news detection model method analysis evaluation uncertainty calibration approach
 ```
 
-### Example command
+### Example Command
 
 ```bash
 python3 "$SEMANTIC_SCRIPT" direct \
@@ -151,16 +172,16 @@ If Obsidian MCP is available:
 - inspect tags and linked notes
 - extract the user's summaries, critiques, and open questions
 
-### Step 0c: Scan local PDFs
+### Step 0c: Scan Local PDFs
 
 - inspect `papers/**/*.pdf` and `literature/**/*.pdf`
 - de-duplicate against Zotero results
 - read the first 3 pages of the most relevant PDFs
 - record title, year, core contribution, and why it matters
 
-### Step 1: Structured external search
+### Step 1: Structured External Search
 
-#### Step 1a: Semantic Scholar local skill
+#### Step 1a: Semantic Scholar Local Skill
 
 If the local Semantic Scholar script exists and `sources` includes `semantic` or `all`:
 
@@ -191,7 +212,32 @@ Use arXiv for high-recall preprint discovery and recent work.
 
 If `ARXIV_DOWNLOAD = true`, download only the top relevant papers not already in the local library.
 
-#### Step 1c: Web search fallback
+#### Step 1c: Semantic Scholar API Search
+
+If `sources` explicitly includes `semantic-scholar`, search the repo's Semantic Scholar API path for published venue papers beyond arXiv:
+
+```bash
+S2_SCRIPT=$(find tools/ -name "semantic_scholar_fetch.py" 2>/dev/null | head -1)
+[ -z "$S2_SCRIPT" ] && S2_SCRIPT=$(find ~/.claude/skills/semantic-scholar/ -name "semantic_scholar_fetch.py" 2>/dev/null | head -1)
+
+python3 "$S2_SCRIPT" search "QUERY" --max 10 \
+  --fields-of-study "Computer Science,Engineering" \
+  --publication-types "JournalArticle,Conference"
+```
+
+If `semantic_scholar_fetch.py` is not found, skip silently.
+
+Use this source when you specifically want:
+- IEEE / ACM / Springer papers not mirrored on arXiv
+- citation counts and venue metadata
+- DOI and publication venue disambiguation
+
+De-duplicate against arXiv by `externalIds.ArXiv` when present:
+- if the S2 result has a real publication venue, prefer its venue metadata
+- if it is only a mirrored preprint, keep the arXiv version as primary
+- S2 entries without arXiv IDs are usually the unique venue-only hits
+
+#### Step 1d: Web Search Fallback
 
 Use WebSearch and WebFetch to cover:
 - project pages
@@ -199,9 +245,9 @@ Use WebSearch and WebFetch to cover:
 - venue pages
 - papers missed by Semantic Scholar and arXiv
 
-Do not rely on generic web search alone if the Semantic Scholar local skill is available.
+Do not rely on generic web search alone if the local Semantic Scholar skill is available.
 
-### Step 2: Analyze each paper
+### Step 2: Analyze Each Paper
 
 For each relevant paper, extract:
 - problem
@@ -240,7 +286,7 @@ Then add a short narrative synthesis in 3-5 paragraphs:
 
 If BibTeX is available from Zotero, include a short `references.bib` snippet.
 
-### Step 5: Save if requested
+### Step 5: Save if Requested
 
 Optionally:
 - save downloaded PDFs into `papers/` or `literature/`
@@ -253,6 +299,6 @@ Optionally:
 - Distinguish peer-reviewed papers from preprints.
 - De-duplicate aggressively across all sources.
 - Prefer precise structured search over broad keyword stuffing.
-- When Semantic Scholar local skill is available, use `direct` mode first.
+- When the local Semantic Scholar skill is available, use `direct` mode first.
 - Use raw keyword extraction only as fallback or debugging.
 - Never fail because a source is missing; continue with the remaining sources.

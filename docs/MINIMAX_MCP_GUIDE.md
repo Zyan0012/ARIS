@@ -58,8 +58,8 @@ pip3 install -r mcp-servers/minimax-chat/requirements.txt
       "args": ["/Users/你的用户名/.claude/mcp-servers/minimax-chat/server.py"],
       "env": {
         "MINIMAX_API_KEY": "你的MiniMax API Key",
-        "MINIMAX_BASE_URL": "https://api.minimax.chat/v1",
-        "MINIMAX_MODEL": "MiniMax-M2.5"
+        "MINIMAX_BASE_URL": "https://api.minimax.io/v1",
+        "MINIMAX_MODEL": "MiniMax-M2.7"
       }
     }
   }
@@ -151,11 +151,11 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | \
 ### 测试 MiniMax API 连通性
 
 ```bash
-curl -s "https://api.minimax.chat/v1/chat/completions" \
+curl -s "https://api.minimax.io/v1/chat/completions" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $MINIMAX_API_KEY" \
   -d '{
-    "model": "MiniMax-M2.5",
+    "model": "MiniMax-M2.7",
     "messages": [{"role": "user", "content": "Say hello"}],
     "max_tokens": 50
   }'
@@ -173,7 +173,7 @@ curl -s "https://api.minimax.chat/v1/chat/completions" \
 ### Q: API 调用失败？
 
 1. 确认 API Key 正确且有效
-2. 确认网络可访问 `https://api.minimax.chat/v1`
+2. 确认网络可访问 `https://api.minimax.io/v1`
 3. 检查 API 余额是否充足
 4. 查看调试日志中的错误信息
 

@@ -45,7 +45,7 @@ nano ~/.claude/settings.json
 {
     "env": {
         "ANTHROPIC_AUTH_TOKEN": "your_minimax_api_key",
-        "ANTHROPIC_BASE_URL": "https://api.minimax.chat/v1/",
+        "ANTHROPIC_BASE_URL": "https://api.minimax.io/anthropic",
         "API_TIMEOUT_MS": "3000000",
         "ANTHROPIC_DEFAULT_HAIKU_MODEL": "MiniMax-M2.7",
         "ANTHROPIC_DEFAULT_SONNET_MODEL": "MiniMax-M2.7",
@@ -92,7 +92,7 @@ claude
 | 配置项 | 值 | 说明 |
 |--------|-----|------|
 | `ANTHROPIC_AUTH_TOKEN` | MiniMax API Key | 从 [MiniMax 开放平台](https://www.minimaxi.com/) 获取 |
-| `ANTHROPIC_BASE_URL` | `https://api.minimax.chat/v1/` | MiniMax Claude 兼容端点 |
+| `ANTHROPIC_BASE_URL` | `https://api.minimax.io/anthropic` | MiniMax Anthropic 兼容端点 |
 | `ANTHROPIC_DEFAULT_*_MODEL` | `MiniMax-M2.7` | 使用 MiniMax-M2.7 作为所有模型 |
 
 ### 审稿人配置（GLM via llm-chat MCP）

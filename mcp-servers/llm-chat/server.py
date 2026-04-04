@@ -2,16 +2,17 @@
 """Generic LLM Chat MCP Server - Supports any OpenAI-compatible API
 
 Environment Variables:
-    LLM_API_KEY      - API key (required)
-    LLM_BASE_URL     - API base URL (default: https://api.openai.com/v1)
-    LLM_MODEL        - Model name (default: gpt-4o)
-    LLM_SERVER_NAME  - Server name for MCP (default: llm-chat)
+    LLM_API_KEY         - API key (required)
+    LLM_BASE_URL        - API base URL (default: https://api.openai.com/v1)
+    LLM_MODEL           - Model name (default: gpt-4o)
+    LLM_FALLBACK_MODEL  - Fallback model on 504 timeout (default: gpt-4o)
+    LLM_SERVER_NAME     - Server name for MCP (default: llm-chat)
 
 Supported Providers (examples):
     OpenAI:      LLM_BASE_URL=https://api.openai.com/v1 LLM_MODEL=gpt-4o
     DeepSeek:    LLM_BASE_URL=https://api.deepseek.com/v1 LLM_MODEL=deepseek-chat
     Kimi:        LLM_BASE_URL=https://api.moonshot.cn/v1 LLM_MODEL=moonshot-v1-32k
-    MiniMax:     LLM_BASE_URL=https://api.minimax.chat/v1 LLM_MODEL=MiniMax-M2.5
+    MiniMax:     LLM_BASE_URL=https://api.minimax.io/v1 LLM_MODEL=MiniMax-M2.7
 """
 
 import json
@@ -28,6 +29,7 @@ sys.stdin = os.fdopen(sys.stdin.fileno(), 'rb', buffering=0)
 API_KEY = os.environ.get("LLM_API_KEY", "")
 BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
 DEFAULT_MODEL = os.environ.get("LLM_MODEL", "gpt-4o")
+FALLBACK_MODEL = os.environ.get("LLM_FALLBACK_MODEL", "gpt-4o")
 SERVER_NAME = os.environ.get("LLM_SERVER_NAME", "llm-chat")
 
 # Debug logging
@@ -50,9 +52,10 @@ def log_error(msg):
     except:
         pass
 
-debug_log(f"=== {SERVER_NAME} MCP Server Starting (v2.0) ===")
+debug_log(f"=== {SERVER_NAME} MCP Server Starting (v2.1) ===")
 debug_log(f"BASE_URL: {BASE_URL}")
 debug_log(f"MODEL: {DEFAULT_MODEL}")
+debug_log(f"FALLBACK_MODEL: {FALLBACK_MODEL}")
 debug_log(f"API_KEY set: {bool(API_KEY)}")
 
 _use_ndjson = False
@@ -72,37 +75,59 @@ def send_response(response):
     sys.stdout.flush()
 
 def call_llm(messages, model=None):
-    """Call LLM Chat Completions API"""
+    """Call LLM Chat Completions API with 504 retry and fallback"""
     if not API_KEY:
         return None, "LLM_API_KEY environment variable not set"
 
+    use_model = model or DEFAULT_MODEL
     url = f"{BASE_URL.rstrip('/')}/chat/completions"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {API_KEY}"
     }
-    payload = {
-        "model": model or DEFAULT_MODEL,
-        "messages": messages,
-        "max_tokens": 4096
-    }
 
-    debug_log(f"Calling LLM API: {url}")
+    # Try: original model → retry same model → fallback model
+    for attempt in range(3):
+        current_model = use_model if attempt < 2 else FALLBACK_MODEL
+        payload = {
+            "model": current_model,
+            "messages": messages,
+            "max_tokens": 4096
+        }
 
-    try:
-        with httpx.Client(timeout=300.0) as client:
-            response = client.post(url, headers=headers, json=payload)
-            if response.status_code != 200:
-                error_msg = f"API error {response.status_code}: {response.text[:500]}"
-                debug_log(f"API error: {error_msg}")
-                return None, error_msg
-            data = response.json()
-            content = data["choices"][0]["message"]["content"]
-            debug_log(f"API success, response length: {len(content)}")
-            return content, None
-    except Exception as e:
-        debug_log(f"API exception: {str(e)}")
-        return None, str(e)
+        debug_log(f"Calling LLM API (attempt {attempt + 1}): model={current_model}")
+
+        try:
+            with httpx.Client(timeout=300.0) as client:
+                response = client.post(url, headers=headers, json=payload)
+
+                if response.status_code == 504:
+                    debug_log(f"504 Gateway Timeout on attempt {attempt + 1} with model {current_model}")
+                    if attempt < 2:
+                        continue  # retry or fallback
+
+                if response.status_code != 200:
+                    error_msg = f"API error {response.status_code}: {response.text[:500]}"
+                    debug_log(f"API error: {error_msg}")
+                    return None, error_msg
+
+                data = response.json()
+                content = data["choices"][0]["message"]["content"]
+                if current_model != use_model:
+                    fallback_note = f"\n\n[Note: Used fallback model {current_model} after 504 timeout with {use_model}]"
+                    content = fallback_note + "\n" + content
+                    debug_log(f"API success with fallback model {current_model}, response length: {len(content)}")
+                elif attempt > 0:
+                    debug_log(f"API success on retry (attempt {attempt + 1}), response length: {len(content)}")
+                else:
+                    debug_log(f"API success, response length: {len(content)}")
+                return content, None
+        except Exception as e:
+            debug_log(f"API exception on attempt {attempt + 1}: {str(e)}")
+            if attempt == 2:
+                return None, str(e)
+
+    return None, "All attempts failed with 504 Gateway Timeout"
 
 def handle_request(request):
     """Handle a JSON-RPC request"""

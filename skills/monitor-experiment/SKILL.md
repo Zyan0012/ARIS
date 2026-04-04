@@ -12,9 +12,28 @@ Monitor: $ARGUMENTS
 ## Workflow
 
 ### Step 1: Check What's Running
+
+**SSH server:**
 ```bash
 ssh <server> "screen -ls"
 ```
+
+**Vast.ai instance** (read `ssh_host`, `ssh_port` from `vast-instances.json`):
+```bash
+ssh -p <PORT> root@<HOST> "screen -ls"
+```
+
+Also check vast.ai instance status:
+```bash
+vastai show instances
+```
+
+**Modal** (when `gpu: modal` in CLAUDE.md):
+```bash
+modal app list         # List running/recent apps
+modal app logs <app>   # Stream logs from a running app
+```
+Modal apps auto-terminate when done — if it's not in the list, it already finished. Check results via `modal volume ls <volume>` or local output.
 
 ### Step 2: Collect Output from Each Screen
 For each screen session, capture the last N lines:
@@ -108,3 +127,5 @@ After results are collected, check `~/.claude/feishu.json`:
 - Compare against the correct baseline (same config)
 - Note if experiments are still running (check progress bars, iteration counts)
 - If results look wrong, check training logs for errors before concluding
+- **Vast.ai cost awareness**: When monitoring vast.ai instances, report the running cost (hours * $/hr from `vast-instances.json`). If all experiments on an instance are done, remind the user to run `/vast-gpu destroy <instance_id>` to stop billing
+- **Modal cost awareness**: Modal auto-scales to zero — no idle billing. When reporting results from Modal runs, note the actual execution time and estimated cost (time * $/hr from the GPU tier used). No cleanup action needed
