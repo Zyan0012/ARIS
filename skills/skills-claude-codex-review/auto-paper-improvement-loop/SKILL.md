@@ -13,6 +13,18 @@ Autonomously improve the paper at: **$ARGUMENTS**
 
 ## Context
 
+## Prerequisites
+
+- Install the base Claude Code skills first: copy `skills/*` into `~/.claude/skills/`.
+- Then install this overlay package: copy `skills/skills-claude-codex-review/*` into `~/.claude/skills/` and allow it to overwrite the same skill names.
+- Register the local reviewer bridge:
+  ```bash
+  mkdir -p ~/.claude/mcp-servers/codex-review
+  cp mcp-servers/codex-review/server.py ~/.claude/mcp-servers/codex-review/server.py
+  claude mcp add codex-review -s user -- python3 ~/.claude/mcp-servers/codex-review/server.py
+  ```
+- This gives Claude Code access to `mcp__codex-review__review`, `mcp__codex-review__review_reply`, `mcp__codex-review__review_start`, `mcp__codex-review__review_reply_start`, and `mcp__codex-review__review_status`.
+
 This skill is designed to run **after** Workflow 3 (`/paper-plan` → `/paper-figure` → `/paper-write` → `/paper-compile`). It takes a compiled paper and iteratively improves it through external LLM review.
 
 Unlike `/auto-review-loop` (which iterates on **research** — running experiments, collecting data, rewriting narrative), this skill iterates on **paper writing quality** — fixing theoretical inconsistencies, softening overclaims, adding missing content, and improving presentation.

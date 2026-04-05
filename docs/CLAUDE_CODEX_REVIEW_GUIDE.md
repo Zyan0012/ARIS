@@ -39,18 +39,13 @@ claude mcp add codex-review -s user -- python3 ~/.claude/mcp-servers/codex-revie
 
 ## What gets overridden
 
-This overlay currently rewrites the core long-review Claude Code skills:
+This overlay currently rewrites 15 review-heavy and judgment-heavy Claude Code skills:
 
-- `research-review`
-- `novelty-check`
-- `research-refine`
-- `auto-review-loop`
-- `paper-plan`
-- `paper-figure`
-- `paper-write`
-- `auto-paper-improvement-loop`
+- Core long-review loops: `research-review`, `novelty-check`, `research-refine`, `auto-review-loop`, `paper-plan`, `paper-figure`, `paper-write`, `auto-paper-improvement-loop`
+- Additional direct review consumers: `idea-creator`, `grant-proposal`, `paper-slides`, `paper-poster`
+- Judgment helpers with long Codex review steps: `ablation-planner`, `result-to-claim`, `experiment-bridge`
 
-These are the skills where long synchronous Codex review prompts are most likely to hit tool-host timeouts.
+These are the skills where long synchronous Codex review or judgment prompts are most likely to hit tool-host timeouts.
 
 ## Sync vs async
 

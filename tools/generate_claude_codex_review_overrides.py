@@ -14,14 +14,21 @@ SRC_ROOT = REPO_ROOT / "skills"
 DEST_ROOT = REPO_ROOT / "skills" / "skills-claude-codex-review"
 
 TARGET_SKILLS = [
+    "ablation-planner",
     "research-review",
     "novelty-check",
     "research-refine",
     "auto-review-loop",
+    "idea-creator",
+    "grant-proposal",
     "paper-plan",
     "paper-figure",
     "paper-write",
+    "paper-slides",
+    "paper-poster",
     "auto-paper-improvement-loop",
+    "result-to-claim",
+    "experiment-bridge",
 ]
 
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n?", re.DOTALL)
@@ -102,6 +109,7 @@ def build_frontmatter(raw_frontmatter: str, description: str) -> str:
 
 def normalize_description(text: str) -> str:
     text = text or "Codex review override for a Claude Code ARIS skill."
+    text = text.replace("Codex MCP", "`codex-review` MCP")
     text = text.replace("via Codex MCP", "via codex-review MCP")
     text = text.replace("using a secondary Codex agent", "using Codex through the local codex-review MCP bridge")
     return text
@@ -151,13 +159,30 @@ def append_async_notes(text: str) -> str:
     )
 
 
+def ensure_prerequisites_block(text: str) -> str:
+    if "## Prerequisites" in text:
+        return re.sub(
+            r"## Prerequisites\n\n[\s\S]*?(?=\n## )",
+            PREREQ_BLOCK + "\n\n",
+            text,
+            count=1,
+        )
+
+    context_heading = re.search(r"^## Context[^\n]*\n", text, re.MULTILINE)
+    if context_heading:
+        insert_at = context_heading.end()
+        return text[:insert_at] + "\n" + PREREQ_BLOCK + "\n" + text[insert_at:]
+
+    first_h2 = re.search(r"^## ", text, re.MULTILINE)
+    if first_h2:
+        insert_at = first_h2.start()
+        return text[:insert_at] + PREREQ_BLOCK + "\n\n" + text[insert_at:]
+
+    return PREREQ_BLOCK + "\n\n" + text
+
+
 def transform_body(text: str) -> str:
-    text = re.sub(
-        r"## Prerequisites\n\n[\s\S]*?(?=\n## )",
-        PREREQ_BLOCK + "\n\n",
-        text,
-        count=1,
-    )
+    text = ensure_prerequisites_block(text)
     text = DIRECT_BLOCK_RE.sub(rewrite_direct_block, text)
     text = REPLY_BLOCK_RE.sub(rewrite_reply_block, text)
     text = text.replace("Codex MCP", "`codex-review` MCP")

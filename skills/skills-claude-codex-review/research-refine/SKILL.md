@@ -10,6 +10,18 @@ allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob, WebSearch, WebFetch, Agen
 
 Refine and concretize: **$ARGUMENTS**
 
+## Prerequisites
+
+- Install the base Claude Code skills first: copy `skills/*` into `~/.claude/skills/`.
+- Then install this overlay package: copy `skills/skills-claude-codex-review/*` into `~/.claude/skills/` and allow it to overwrite the same skill names.
+- Register the local reviewer bridge:
+  ```bash
+  mkdir -p ~/.claude/mcp-servers/codex-review
+  cp mcp-servers/codex-review/server.py ~/.claude/mcp-servers/codex-review/server.py
+  claude mcp add codex-review -s user -- python3 ~/.claude/mcp-servers/codex-review/server.py
+  ```
+- This gives Claude Code access to `mcp__codex-review__review`, `mcp__codex-review__review_reply`, `mcp__codex-review__review_start`, `mcp__codex-review__review_reply_start`, and `mcp__codex-review__review_status`.
+
 ## Overview
 
 Use this skill when the research problem is already visible but the technical route is still fuzzy. The goal is not to produce a bloated proposal or a benchmark shopping list. The goal is to turn a vague direction into a **problem -> focused method -> minimal validation** document that is concrete enough to implement, elegant enough to feel paper-worthy, and current enough to resonate in the foundation-model era.

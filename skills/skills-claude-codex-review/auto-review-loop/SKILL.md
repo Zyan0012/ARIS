@@ -1,6 +1,6 @@
 ---
 name: auto-review-loop
-description: "Autonomous multi-round research review loop. Repeatedly reviews via codex-review MCP, implements fixes, and re-reviews until positive assessment or max rounds reached. Use when user says \\\"auto review loop\\\", \\\"review until it passes\\\", or wants autonomous iterative improvement."
+description: "Autonomous multi-round research review loop. Repeatedly reviews via `codex-review` MCP, implements fixes, and re-reviews until positive assessment or max rounds reached. Use when user says \\\"auto review loop\\\", \\\"review until it passes\\\", or wants autonomous iterative improvement."
 argument-hint: [topic-or-scope]
 allowed-tools: Bash(*), Read, Grep, Glob, Write, Edit, Agent, Skill, mcp__codex-review__review, mcp__codex-review__review_reply, mcp__codex-review__review_start, mcp__codex-review__review_reply_start, mcp__codex-review__review_status
 ---
@@ -12,6 +12,18 @@ allowed-tools: Bash(*), Read, Grep, Glob, Write, Edit, Agent, Skill, mcp__codex-
 Autonomously iterate: review → implement fixes → re-review, until the external reviewer gives a positive assessment or MAX_ROUNDS is reached.
 
 ## Context: $ARGUMENTS
+
+## Prerequisites
+
+- Install the base Claude Code skills first: copy `skills/*` into `~/.claude/skills/`.
+- Then install this overlay package: copy `skills/skills-claude-codex-review/*` into `~/.claude/skills/` and allow it to overwrite the same skill names.
+- Register the local reviewer bridge:
+  ```bash
+  mkdir -p ~/.claude/mcp-servers/codex-review
+  cp mcp-servers/codex-review/server.py ~/.claude/mcp-servers/codex-review/server.py
+  claude mcp add codex-review -s user -- python3 ~/.claude/mcp-servers/codex-review/server.py
+  ```
+- This gives Claude Code access to `mcp__codex-review__review`, `mcp__codex-review__review_reply`, `mcp__codex-review__review_start`, `mcp__codex-review__review_reply_start`, and `mcp__codex-review__review_status`.
 
 ## Constants
 

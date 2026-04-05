@@ -11,6 +11,18 @@ allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob, Agent, WebSearch, WebFetc
 
 Generate a structured, section-by-section paper outline from: **$ARGUMENTS**
 
+## Prerequisites
+
+- Install the base Claude Code skills first: copy `skills/*` into `~/.claude/skills/`.
+- Then install this overlay package: copy `skills/skills-claude-codex-review/*` into `~/.claude/skills/` and allow it to overwrite the same skill names.
+- Register the local reviewer bridge:
+  ```bash
+  mkdir -p ~/.claude/mcp-servers/codex-review
+  cp mcp-servers/codex-review/server.py ~/.claude/mcp-servers/codex-review/server.py
+  claude mcp add codex-review -s user -- python3 ~/.claude/mcp-servers/codex-review/server.py
+  ```
+- This gives Claude Code access to `mcp__codex-review__review`, `mcp__codex-review__review_reply`, `mcp__codex-review__review_start`, `mcp__codex-review__review_reply_start`, and `mcp__codex-review__review_status`.
+
 ## Constants
 
 - **REVIEWER_MODEL = `gpt-5.4`** — Model used via `codex-review` MCP for outline review. Must be an OpenAI model.
