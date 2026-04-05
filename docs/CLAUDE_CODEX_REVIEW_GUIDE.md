@@ -64,6 +64,8 @@ This avoids waiting for a long reviewer response inside a single MCP tool call.
 
 In practice this means you should not need to ask for async review explicitly each time. Once the override skills are installed, the covered review-heavy Claude Code skills route through `codex-review` by default. Prompt-level instructions are only needed if you want to override that default behavior.
 
+The bridge now also includes an automatic Responses HTTP fallback for WSL/API-key setups where `codex exec` reaches the provider but the provider does not fully support the Codex websocket transport. In that case the bridge retries the same review over plain `POST /responses`.
+
 ## Provider caveat
 
 The bridge reuses the local Codex CLI configuration as-is. Before using this path, verify that a short direct Codex command succeeds:

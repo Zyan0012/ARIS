@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import base64
 import json
+import mimetypes
 import os
 import re
 import shlex
@@ -17,6 +19,13 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib import error as urllib_error
+from urllib import request as urllib_request
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python 3.11+ ships tomllib
+    tomllib = None
 
 
 sys.stdout = os.fdopen(sys.stdout.fileno(), "wb", buffering=0)
@@ -29,6 +38,11 @@ DEFAULT_SYSTEM = os.environ.get("CODEX_REVIEW_SYSTEM", "")
 DEFAULT_TIMEOUT_SEC = int(os.environ.get("CODEX_REVIEW_TIMEOUT_SEC", "600"))
 DEFAULT_REASONING = os.environ.get("CODEX_REVIEW_REASONING_EFFORT", "xhigh").strip()
 DEFAULT_CODEX_HOME = os.environ.get("CODEX_REVIEW_CODEX_HOME", "").strip()
+DEFAULT_HTTP_FALLBACK = os.environ.get("CODEX_REVIEW_HTTP_FALLBACK", "1").lower() not in {
+    "0",
+    "false",
+    "no",
+}
 DEFAULT_DISABLE_FAST_MODE = os.environ.get("CODEX_REVIEW_DISABLE_FAST_MODE", "1").lower() not in {
     "0",
     "false",
@@ -229,6 +243,10 @@ def build_subprocess_env() -> dict[str, str]:
     return env
 
 
+def codex_home_dir() -> Path:
+    return Path(build_subprocess_env()["CODEX_HOME"]).expanduser()
+
+
 def sanitize_text(text: str) -> str:
     return ANSI_RE.sub("", text).replace("\r", "").strip()
 
@@ -301,6 +319,153 @@ def extract_error_message(stdout: str, stderr: str, return_code: int) -> str:
     return f"Codex review failed with exit code {return_code}"
 
 
+def load_toml_payload(path: Path) -> dict[str, Any]:
+    if tomllib is None:
+        raise RuntimeError("tomllib is not available in this Python runtime")
+    with path.open("rb") as fh:
+        payload = tomllib.load(fh)
+    if isinstance(payload, dict):
+        return payload
+    return {}
+
+
+def load_codex_http_context(model_override: str | None = None) -> tuple[dict[str, Any] | None, str | None]:
+    codex_home = codex_home_dir()
+    config_path = codex_home / "config.toml"
+    auth_path = codex_home / "auth.json"
+
+    config: dict[str, Any] = {}
+    if config_path.exists():
+        try:
+            config = load_toml_payload(config_path)
+        except Exception as exc:
+            return None, f"Failed to read Codex config.toml for HTTP fallback: {exc}"
+
+    base_url = str(config.get("openai_base_url") or "").strip().rstrip("/")
+    forced_login_method = str(config.get("forced_login_method") or "").strip().lower()
+    selected_model = str(model_override or config.get("model") or DEFAULT_MODEL or "").strip()
+    if not base_url:
+        return None, "Codex HTTP fallback is unavailable because openai_base_url is not configured"
+    if not auth_path.exists():
+        return None, "Codex HTTP fallback is unavailable because auth.json is missing"
+
+    try:
+        auth_payload = json.loads(auth_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return None, f"Failed to read Codex auth.json for HTTP fallback: {exc}"
+    if not isinstance(auth_payload, dict):
+        return None, "Codex HTTP fallback is unavailable because auth.json has an unexpected format"
+
+    api_key = str(
+        auth_payload.get("OPENAI_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+        or ""
+    ).strip()
+    if not api_key:
+        return None, "Codex HTTP fallback is unavailable because no OpenAI API key was found"
+
+    return {
+        "base_url": base_url,
+        "api_key": api_key,
+        "model": selected_model,
+        "forced_login_method": forced_login_method,
+        "auth_mode": str(auth_payload.get("auth_mode") or "").strip().lower(),
+    }, None
+
+
+def should_try_http_fallback(
+    cli_error: str | None,
+    stdout: str,
+    stderr: str,
+    http_context: dict[str, Any] | None,
+) -> bool:
+    if not DEFAULT_HTTP_FALLBACK or not http_context:
+        return False
+
+    base_url = str(http_context.get("base_url") or "")
+    forced_login_method = str(http_context.get("forced_login_method") or "")
+    if forced_login_method == "api" and "backend-api" in base_url:
+        return True
+
+    haystack = "\n".join([cli_error or "", stdout, stderr]).lower()
+    fallback_markers = (
+        "settlement_unknown_model",
+        "responses_websocket",
+        "failed to connect to websocket",
+        "http error: 400 bad request",
+        "codex cli not found",
+    )
+    return any(marker in haystack for marker in fallback_markers)
+
+
+def normalize_responses_endpoint(base_url: str) -> str:
+    stripped = base_url.rstrip("/")
+    if stripped.endswith("/responses"):
+        return stripped
+    return f"{stripped}/responses"
+
+
+def image_path_to_data_url(image_path: str) -> tuple[str | None, str | None]:
+    path = Path(image_path).expanduser()
+    if not path.exists():
+        return None, f"image path does not exist: {image_path}"
+    if not path.is_file():
+        return None, f"image path is not a file: {image_path}"
+
+    mime_type, _ = mimetypes.guess_type(str(path))
+    payload = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:{mime_type or 'image/png'};base64,{payload}", None
+
+
+def build_http_input(prompt: str, image_paths: list[str]) -> tuple[Any, str | None]:
+    if not image_paths:
+        return prompt, None
+
+    content: list[dict[str, Any]] = [{"type": "input_text", "text": prompt}]
+    for image_path in image_paths:
+        data_url, error = image_path_to_data_url(image_path)
+        if error:
+            return None, error
+        content.append({"type": "input_image", "image_url": data_url})
+    return [{"role": "user", "content": content}], None
+
+
+def extract_http_output_text(payload: dict[str, Any]) -> str:
+    output_text = str(payload.get("output_text") or "").strip()
+    if output_text:
+        return output_text
+
+    chunks: list[str] = []
+    output = payload.get("output")
+    if isinstance(output, list):
+        for item in output:
+            if not isinstance(item, dict):
+                continue
+            content = item.get("content")
+            if not isinstance(content, list):
+                continue
+            for block in content:
+                if not isinstance(block, dict):
+                    continue
+                if block.get("type") == "output_text":
+                    text = str(block.get("text") or "").strip()
+                    if text:
+                        chunks.append(text)
+    return "\n".join(chunks).strip()
+
+
+def build_http_error_message(payload: dict[str, Any] | None, default_message: str) -> str:
+    if not isinstance(payload, dict):
+        return default_message
+    message = str(payload.get("message") or payload.get("error") or "").strip()
+    code = str(payload.get("code") or "").strip()
+    if message and code:
+        return f"{code}: {message}"
+    if message:
+        return message
+    return default_message
+
+
 def build_command(
     output_path: str,
     *,
@@ -335,7 +500,7 @@ def build_command(
     return cmd
 
 
-def run_codex_review(
+def run_codex_cli_review(
     prompt: str,
     *,
     session_id: str | None = None,
@@ -344,16 +509,16 @@ def run_codex_review(
     tools: str | None = None,
     image_paths: Any = None,
     cwd: Any = None,
-) -> tuple[dict[str, Any] | None, str | None]:
+) -> tuple[dict[str, Any] | None, str | None, str, str]:
     del tools
 
     normalized_image_paths, image_error = normalize_image_paths(image_paths)
     if image_error:
-        return None, image_error
+        return None, image_error, "", ""
 
     workdir, cwd_error = resolve_workdir(cwd)
     if cwd_error:
-        return None, cwd_error
+        return None, cwd_error, "", ""
 
     effective_prompt = build_effective_prompt(prompt, system)
     try:
@@ -367,7 +532,7 @@ def run_codex_review(
                     image_paths=normalized_image_paths,
                 )
             except FileNotFoundError as exc:
-                return None, str(exc)
+                return None, str(exc), "", ""
 
             debug_log(f"RUN {' '.join(cmd)}")
             started = time.monotonic()
@@ -384,7 +549,7 @@ def run_codex_review(
                 )
                 duration_ms = int((time.monotonic() - started) * 1000)
             except subprocess.TimeoutExpired:
-                return None, f"Codex review timed out after {DEFAULT_TIMEOUT_SEC} seconds"
+                return None, f"Codex review timed out after {DEFAULT_TIMEOUT_SEC} seconds", "", ""
 
             stdout = result.stdout or ""
             stderr = result.stderr or ""
@@ -392,14 +557,14 @@ def run_codex_review(
 
             if result.returncode != 0:
                 error_message = extract_error_message(stdout, stderr, result.returncode)
-                return None, error_message
+                return None, error_message, stdout, stderr
 
             response_path = Path(output_path)
             if not response_path.exists():
-                return None, "Codex review completed without producing an output-last-message file"
+                return None, "Codex review completed without producing an output-last-message file", stdout, stderr
             response_text = response_path.read_text(encoding="utf-8").strip()
             if not response_text:
-                return None, "Codex review completed but returned an empty response"
+                return None, "Codex review completed but returned an empty response", stdout, stderr
 
             return {
                 "threadId": thread_id,
@@ -408,9 +573,138 @@ def run_codex_review(
                 "duration_ms": duration_ms,
                 "stop_reason": None,
                 "backend": "codex-cli",
-            }, None
+            }, None, stdout, stderr
     except OSError as exc:
-        return None, f"Failed to run Codex review: {exc}"
+        return None, f"Failed to run Codex review: {exc}", "", ""
+
+
+def run_http_review(
+    prompt: str,
+    *,
+    session_id: str | None = None,
+    model: str | None = None,
+    system: str | None = None,
+    tools: str | None = None,
+    image_paths: Any = None,
+    cwd: Any = None,
+) -> tuple[dict[str, Any] | None, str | None]:
+    del tools
+    del cwd
+
+    normalized_image_paths, image_error = normalize_image_paths(image_paths)
+    if image_error:
+        return None, image_error
+
+    context, context_error = load_codex_http_context(model)
+    if context_error:
+        return None, context_error
+    if not context:
+        return None, "Codex HTTP fallback context is unavailable"
+
+    effective_prompt = build_effective_prompt(prompt, system)
+    input_payload, input_error = build_http_input(effective_prompt, normalized_image_paths)
+    if input_error:
+        return None, input_error
+
+    request_payload: dict[str, Any] = {
+        "model": str(context.get("model") or model or DEFAULT_MODEL or "").strip(),
+        "input": input_payload,
+    }
+    if session_id:
+        request_payload["previous_response_id"] = session_id
+
+    endpoint = normalize_responses_endpoint(str(context.get("base_url") or ""))
+    headers = {
+        "Authorization": f"Bearer {context['api_key']}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+
+    request = urllib_request.Request(
+        endpoint,
+        data=json.dumps(request_payload).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+
+    started = time.monotonic()
+    try:
+        with urllib_request.urlopen(request, timeout=DEFAULT_TIMEOUT_SEC) as response:
+            duration_ms = int((time.monotonic() - started) * 1000)
+            response_payload = json.loads(response.read().decode("utf-8"))
+    except urllib_error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        try:
+            error_payload = json.loads(body)
+        except json.JSONDecodeError:
+            error_payload = None
+        return None, build_http_error_message(
+            error_payload,
+            f"Codex HTTP fallback failed with status {exc.code}",
+        )
+    except urllib_error.URLError as exc:
+        return None, f"Codex HTTP fallback failed: {exc.reason}"
+    except TimeoutError:
+        return None, f"Codex HTTP fallback timed out after {DEFAULT_TIMEOUT_SEC} seconds"
+    except OSError as exc:
+        return None, f"Codex HTTP fallback failed: {exc}"
+
+    response_text = extract_http_output_text(response_payload)
+    if not response_text:
+        return None, "Codex HTTP fallback completed but returned an empty response"
+
+    return {
+        "threadId": str(response_payload.get("id") or session_id or ""),
+        "response": response_text,
+        "model": str(response_payload.get("model") or request_payload["model"]),
+        "duration_ms": duration_ms,
+        "stop_reason": response_payload.get("status"),
+        "backend": "responses-http",
+    }, None
+
+
+def run_codex_review(
+    prompt: str,
+    *,
+    session_id: str | None = None,
+    model: str | None = None,
+    system: str | None = None,
+    tools: str | None = None,
+    image_paths: Any = None,
+    cwd: Any = None,
+) -> tuple[dict[str, Any] | None, str | None]:
+    cli_payload, cli_error, stdout, stderr = run_codex_cli_review(
+        prompt,
+        session_id=session_id,
+        model=model,
+        system=system,
+        tools=tools,
+        image_paths=image_paths,
+        cwd=cwd,
+    )
+    if cli_payload or not DEFAULT_HTTP_FALLBACK:
+        return cli_payload, cli_error
+
+    http_context, context_error = load_codex_http_context(model)
+    if not should_try_http_fallback(cli_error, stdout, stderr, http_context):
+        return cli_payload, cli_error
+    if context_error:
+        return cli_payload, cli_error or context_error
+
+    debug_log(f"HTTP_FALLBACK reason={cli_error!r}")
+    http_payload, http_error = run_http_review(
+        prompt,
+        session_id=session_id,
+        model=model,
+        system=system,
+        tools=tools,
+        image_paths=image_paths,
+        cwd=cwd,
+    )
+    if http_error:
+        combined_error = cli_error or "Codex review failed"
+        return None, f"{combined_error}; HTTP fallback also failed: {http_error}"
+    return http_payload, None
 
 
 def start_async_review(

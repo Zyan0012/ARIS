@@ -35,13 +35,39 @@ class FakeWorker:
         self.pid = pid
 
 
+class FakeHttpResponse:
+    def __init__(self, payload: dict[str, object], status: int = 200):
+        self.payload = payload
+        self.status = status
+
+    def read(self) -> bytes:
+        return json.dumps(self.payload).encode("utf-8")
+
+    def __enter__(self) -> "FakeHttpResponse":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> bool:
+        return False
+
+
 class TestCodexReviewServer(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = Path(tempfile.mkdtemp(prefix="codex-review-test-"))
         self.fake_script = self.temp_dir / "fake_codex.py"
         self.fake_cmd = self.temp_dir / "fake-codex.cmd"
+        self.codex_home = self.temp_dir / "codex-home"
         self.state_dir = self.temp_dir / "state"
         self.debug_log = self.temp_dir / "debug.log"
+
+        self.codex_home.mkdir(parents=True, exist_ok=True)
+        (self.codex_home / "config.toml").write_text(
+            'model = "test-model"\nforced_login_method = "api"\nopenai_base_url = "https://example.test/codex"\n',
+            encoding="utf-8",
+        )
+        (self.codex_home / "auth.json").write_text(
+            json.dumps({"OPENAI_API_KEY": "sk-test-123", "auth_mode": "apikey"}),
+            encoding="utf-8",
+        )
 
         self.fake_script.write_text(
             textwrap.dedent(
@@ -103,6 +129,7 @@ class TestCodexReviewServer(unittest.TestCase):
                 "CODEX_REVIEW_STATE_DIR": str(self.state_dir),
                 "CODEX_REVIEW_DEBUG_LOG": str(self.debug_log),
                 "CODEX_REVIEW_MODEL": "test-model",
+                "CODEX_REVIEW_CODEX_HOME": str(self.codex_home),
                 "CODEX_REVIEW_DISABLE_FAST_MODE": "0",
             },
             clear=False,
@@ -159,7 +186,53 @@ class TestCodexReviewServer(unittest.TestCase):
         env = self.server.build_subprocess_env()
         expected_home = os.environ.get("HOME") or str(Path.home())
         self.assertEqual(env["HOME"], expected_home)
-        self.assertEqual(env["CODEX_HOME"], str(Path(expected_home) / ".codex"))
+        self.assertEqual(env["CODEX_HOME"], str(self.codex_home))
+
+    def test_load_codex_http_context_reads_temp_codex_home(self) -> None:
+        context, error = self.server.load_codex_http_context()
+        self.assertIsNone(error)
+        self.assertEqual(context["base_url"], "https://example.test/codex")
+        self.assertEqual(context["api_key"], "sk-test-123")
+        self.assertEqual(context["model"], "test-model")
+
+    def test_http_fallback_after_cli_failure(self) -> None:
+        captured: dict[str, object] = {}
+
+        def fake_urlopen(request, timeout=0):
+            captured["url"] = request.full_url
+            captured["timeout"] = timeout
+            captured["body"] = json.loads(request.data.decode("utf-8"))
+            captured["auth"] = request.headers.get("Authorization")
+            return FakeHttpResponse(
+                {
+                    "id": "resp_test_123",
+                    "model": "test-model",
+                    "output": [
+                        {
+                            "content": [
+                                {"type": "output_text", "text": "fallback ok"},
+                            ]
+                        }
+                    ],
+                    "status": "completed",
+                }
+            )
+
+        with patch.object(
+            self.server,
+            "run_codex_cli_review",
+            return_value=(None, "SETTLEMENT_UNKNOWN_MODEL: provider failure", "", "failed to connect to websocket"),
+        ), patch.object(self.server.urllib_request, "urlopen", side_effect=fake_urlopen):
+            payload, error = self.server.run_codex_review("hello via fallback", session_id="resp_prev_456")
+
+        self.assertIsNone(error)
+        self.assertEqual(payload["threadId"], "resp_test_123")
+        self.assertEqual(payload["response"], "fallback ok")
+        self.assertEqual(payload["backend"], "responses-http")
+        self.assertEqual(captured["url"], "https://example.test/codex/responses")
+        self.assertEqual(captured["auth"], "Bearer sk-test-123")
+        self.assertEqual(captured["body"]["previous_response_id"], "resp_prev_456")
+        self.assertEqual(captured["body"]["input"], "hello via fallback")
 
     def test_async_review_lifecycle(self) -> None:
         with patch.object(self.server.subprocess, "Popen", return_value=FakeWorker()):

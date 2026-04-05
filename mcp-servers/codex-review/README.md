@@ -29,6 +29,7 @@ claude mcp add codex-review -s user -- python3 ~/.claude/mcp-servers/codex-revie
 - `CODEX_REVIEW_TIMEOUT_SEC`: subprocess timeout, defaults to `600`
 - `CODEX_REVIEW_REASONING_EFFORT`: Codex reasoning effort override, defaults to `xhigh`
 - `CODEX_REVIEW_CODEX_HOME`: optional explicit Codex home; defaults to `$HOME/.codex` for the subprocess
+- `CODEX_REVIEW_HTTP_FALLBACK`: set `0` to disable automatic Responses HTTP fallback after Codex CLI failures; default is enabled
 - `CODEX_REVIEW_DISABLE_FAST_MODE`: set `0` to keep Codex fast mode enabled; default disables it
 - `CODEX_REVIEW_SKIP_GIT_REPO_CHECK`: set `0` to keep the repo check enabled; default skips it
 - `CODEX_REVIEW_EXTRA_ARGS`: additional raw Codex CLI arguments appended to every review call
@@ -53,7 +54,7 @@ If your Codex CLI uses a custom API endpoint or model mapping, validate that a s
 codex exec --skip-git-repo-check "Reply with exactly OK."
 ```
 
-If that fails, the bridge will surface the same underlying provider error. In that case, set `CODEX_REVIEW_MODEL` to a provider-supported model or fix the Codex CLI provider configuration first.
+If that fails, the bridge will first try to surface the Codex CLI error. When the local config is API-key based and points at an OpenAI-compatible `openai_base_url`, the bridge will also try a direct `POST /responses` HTTP fallback before giving up.
 
 If you run Claude Code from WSL and also have a Windows-side Codex install, this bridge pins the subprocess `CODEX_HOME` to `$HOME/.codex` by default so review jobs stay on the WSL Codex config instead of inheriting a mixed Windows skill directory.
 
