@@ -41,7 +41,7 @@ def debug_log(msg):
             import datetime
             f.write(f"{datetime.datetime.now()}: {msg}\n")
             f.flush()
-    except:
+    except Exception:
         pass
 
 def log_error(msg):
@@ -49,7 +49,7 @@ def log_error(msg):
         with open(DEBUG_LOG, "a") as f:
             import datetime
             f.write(f"{datetime.datetime.now()}: ERROR: {msg}\n")
-    except:
+    except Exception:
         pass
 
 debug_log(f"=== {SERVER_NAME} MCP Server Starting (v2.1) ===")
@@ -267,14 +267,14 @@ def read_message():
         body = sys.stdin.read(content_length)
         try:
             return json.loads(body.decode('utf-8'))
-        except:
+        except Exception:
             return None
 
     elif line.startswith("{") or line.startswith("["):
         _use_ndjson = True
         try:
             return json.loads(line)
-        except:
+        except Exception:
             return None
 
     return None

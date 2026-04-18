@@ -20,10 +20,28 @@ Given a broad research direction from the user, systematically generate, validat
 - **MAX_PILOT_IDEAS = 3** — Pilot at most 3 ideas in parallel. Additional ideas are validated on paper only.
 - **MAX_TOTAL_GPU_HOURS = 8** — Total GPU budget for all pilots combined.
 - **REVIEWER_MODEL = `gpt-5.4`** — Model used via Codex MCP for brainstorming and review. Must be an OpenAI model (e.g., `gpt-5.4`, `o3`, `gpt-4o`).
+- **REVIEWER_BACKEND = `codex`** — Default: Codex MCP (xhigh). Override with `— reviewer: oracle-pro` for GPT-5.4 Pro via Oracle MCP. See `shared-references/reviewer-routing.md`.
+- **OUTPUT_DIR = `idea-stage/`** — All idea-stage outputs go here. Create the directory if it doesn't exist.
 
 > 💡 Override via argument, e.g., `/idea-creator "topic" — pilot budget: 4h per idea, 20h total`.
 
 ## Workflow
+
+### Phase 0: Load Research Wiki (if active)
+
+**Skip this phase entirely if `research-wiki/` does not exist.**
+
+```
+if research-wiki/query_pack.md exists AND is less than 7 days old:
+    Read query_pack.md and use it as initial landscape context:
+    - Treat listed gaps as priority search seeds
+    - Treat failed ideas as a banlist (do NOT regenerate similar ideas)
+    - Treat top papers as known prior work (do not re-search them)
+    Still run Phase 1 below for papers from the last 3-6 months (wiki may be stale)
+else if research-wiki/ exists but query_pack.md is stale or missing:
+    python3 tools/research_wiki.py rebuild_query_pack research-wiki/
+    Then read query_pack.md as above
+```
 
 ### Phase 1: Landscape Survey (5-10 min)
 
@@ -156,7 +174,7 @@ Note: Skip this phase if the ideas are purely theoretical or if no GPU is availa
 
 ### Phase 6: Output — Ranked Idea Report
 
-Write a structured report to `IDEA_REPORT.md` in the project root:
+Write a structured report to `idea-stage/IDEA_REPORT.md`:
 
 ```markdown
 # Research Idea Report
@@ -209,6 +227,41 @@ Write a structured report to `IDEA_REPORT.md` in the project root:
 - [ ] If confirmed, invoke /auto-review-loop for full iteration
 ```
 
+## Phase 7: Write Ideas to Research Wiki (if active)
+
+**Skip this phase entirely if `research-wiki/` does not exist.**
+
+This is critical for spiral learning — without it, `ideas/` stays empty and re-ideation has no memory.
+
+```
+if research-wiki/ exists:
+    for each idea in recommended_ideas + eliminated_ideas:
+        1. Create page: research-wiki/ideas/<idea_id>.md
+           - node_id: idea:<id>
+           - stage: proposed (or: piloted, archived)
+           - outcome: unknown (or: negative, mixed, positive)
+           - based_on: [paper:<slug>, ...]
+           - target_gaps: [gap:<id>, ...]
+           - Include: hypothesis, proposed method, expected outcome
+           - If pilot was run: actual outcome, failure notes, reusable components
+
+        2. Add edges:
+           python3 tools/research_wiki.py add_edge research-wiki/ --from "idea:<id>" --to "paper:<slug>" --type inspired_by --evidence "..."
+           python3 tools/research_wiki.py add_edge research-wiki/ --from "idea:<id>" --to "gap:<id>" --type addresses_gap --evidence "..."
+
+    Rebuild query pack:
+        python3 tools/research_wiki.py rebuild_query_pack research-wiki/
+    Log:
+        python3 tools/research_wiki.py log research-wiki/ "idea-creator wrote N ideas (M recommended, K eliminated)"
+```
+
+## Output Protocols
+
+> Follow these shared protocols for all output files:
+> - **[Output Versioning Protocol](../shared-references/output-versioning.md)** — write timestamped file first, then copy to fixed name
+> - **[Output Manifest Protocol](../shared-references/output-manifest.md)** — log every output to MANIFEST.md
+> - **[Output Language Protocol](../shared-references/output-language.md)** — respect the project's language setting
+
 ## Key Rules
 
 - **Large file handling**: If the Write tool fails due to file size, immediately retry using Bash (`cat << 'EOF' > file`) to write in chunks. Do NOT ask the user for permission — just do it silently.
@@ -233,3 +286,7 @@ implement                     → write code
 /run-experiment               → deploy to GPU
 /auto-review-loop             → iterate until submission-ready
 ```
+
+## Review Tracing
+
+After each `mcp__codex__codex` or `mcp__codex__codex-reply` reviewer call, save the trace following `shared-references/review-tracing.md`. Use `tools/save_trace.sh` or write files directly to `.aris/traces/<skill>/<date>_run<NN>/`. Respect the `--- trace:` parameter (default: `full`).

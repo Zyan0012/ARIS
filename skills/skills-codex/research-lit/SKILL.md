@@ -22,6 +22,8 @@ Research topic: $ARGUMENTS
 > - `/research-lit "topic" — sources: zotero, local` — only search Zotero + local PDFs
 > - `/research-lit "topic" — sources: zotero` — only search Zotero
 > - `/research-lit "topic" — sources: web` — only search the web (skip all local)
+> - `/research-lit "topic" — sources: deepxiv` — only search via DeepXiv progressive retrieval
+> - `/research-lit "topic" — sources: all, deepxiv` — use default sources plus DeepXiv
 > - `/research-lit "topic" — arxiv download: true` — download top relevant arXiv PDFs
 > - `/research-lit "topic" — arxiv download: true, max download: 10` — download up to 10 PDFs
 
@@ -32,8 +34,8 @@ This skill checks multiple sources **in priority order**. All are optional — i
 ### Source Selection
 
 Parse `$ARGUMENTS` for a `— sources:` directive:
-- **If `— sources:` is specified**: Only search the listed sources (comma-separated). Valid values: `zotero`, `obsidian`, `local`, `web`, `all`.
-- **If not specified**: Default to `all` — search every available source in priority order.
+- **If `— sources:` is specified**: Only search the listed sources (comma-separated). Valid values: `zotero`, `obsidian`, `local`, `web`, `deepxiv`, `exa`, `all`.
+- **If not specified**: Default to `all` — search every available source in priority order (`deepxiv` and `exa` are excluded from `all`; they must be explicitly listed).
 
 Examples:
 ```
@@ -43,6 +45,10 @@ Examples:
 /research-lit "diffusion models" — sources: zotero, web → Zotero + web
 /research-lit "diffusion models" — sources: local       → local PDFs only
 /research-lit "topic" — sources: obsidian, local, web   → skip Zotero
+/research-lit "topic" — sources: deepxiv                → DeepXiv only
+/research-lit "topic" — sources: all, deepxiv           → default sources + DeepXiv
+/research-lit "topic" — sources: exa                    → Exa only (broad web + content extraction)
+/research-lit "topic" — sources: all, exa               → default sources + Exa web search
 ```
 
 ### Source Table
@@ -53,6 +59,8 @@ Examples:
 | 2 | **Obsidian** (via MCP) | `obsidian` | Try calling any `mcp__obsidian-vault__*` tool — if unavailable, skip | Research notes, paper summaries, tagged references, wikilinks |
 | 3 | **Local PDFs** | `local` | `Glob: papers/**/*.pdf, literature/**/*.pdf` | Raw PDF content (first 3 pages) |
 | 4 | **Web search** | `web` | Always available (WebSearch) | arXiv, Semantic Scholar, Google Scholar |
+| 5 | **DeepXiv CLI** | `deepxiv` | `tools/deepxiv_fetch.py` and installed `deepxiv` CLI | Progressive paper retrieval: search, brief, head, section, trending, web search. **Only runs when explicitly requested** |
+| 6 | **Exa Search** | `exa` | `tools/exa_search.py` and installed `exa-py` SDK | AI-powered broad web search with content extraction (highlights, text, summaries). Covers blogs, docs, news, companies, and research papers beyond arXiv/S2. **Only runs when explicitly requested** |
 
 > **Graceful degradation**: If no MCP servers are configured, the skill works exactly as before (local PDFs + web search). Zotero and Obsidian are pure additions.
 
@@ -138,6 +146,45 @@ python3 "$SCRIPT" search "QUERY" --max 10
 If `arxiv_fetch.py` is not found, fall back to WebSearch for arXiv (same as before).
 
 The arXiv API returns structured metadata (title, abstract, full author list, categories, dates) — richer than WebSearch snippets. Merge these results with WebSearch findings and de-duplicate.
+
+**DeepXiv search** (only when `deepxiv` is in sources):
+
+When the user explicitly requests `— sources: deepxiv` (or includes `deepxiv` in a combined source list), use the DeepXiv adapter for progressive retrieval:
+
+```bash
+python3 tools/deepxiv_fetch.py search "QUERY" --max 10
+python3 tools/deepxiv_fetch.py paper-brief ARXIV_ID
+python3 tools/deepxiv_fetch.py paper-head ARXIV_ID
+python3 tools/deepxiv_fetch.py paper-section ARXIV_ID "Experiments"
+```
+
+If `tools/deepxiv_fetch.py` or the `deepxiv` CLI is unavailable, skip this source gracefully and continue with the remaining requested sources.
+
+**De-duplication against other sources**:
+- Match by arXiv ID first
+- Fall back to normalized title when needed
+- Keep one canonical paper entry and record `deepxiv` as an additional source when it overlaps with web/arXiv findings
+
+**Exa search** (only when `exa` is in sources):
+
+When the user explicitly requests `— sources: exa` (or includes `exa` in a combined source list), use the Exa tool for broad AI-powered web search with content extraction:
+
+```bash
+EXA_SCRIPT=$(find tools/ -name "exa_search.py" 2>/dev/null | head -1)
+
+# Search for research papers with highlights
+python3 "$EXA_SCRIPT" search "QUERY" --max 10 --category "research paper" --content highlights
+
+# Search for broader web content (blogs, docs, news)
+python3 "$EXA_SCRIPT" search "QUERY" --max 10 --content highlights
+```
+
+If `tools/exa_search.py` or the `exa-py` SDK is unavailable, skip this source gracefully and continue with the remaining requested sources.
+
+**De-duplication against other sources**:
+- Match by URL first, then normalized title
+- If Exa returns an arXiv paper already found by other sources, prefer structured metadata from arXiv/S2
+- Exa results from non-academic domains (blogs, docs, news) are unique value not covered by other sources
 
 **Optional PDF download** (only when `ARXIV_DOWNLOAD = true`):
 

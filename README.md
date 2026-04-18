@@ -2,11 +2,23 @@
 
 💡 *Use ARIS in Claude Code / Cursor / Trae as a skill-based workflow, or get the full experience with the standalone CLI — enjoy any way you like!*
 
+🤖 **AI agents:** Read [`AGENT_GUIDE.md`](AGENT_GUIDE.md) instead — structured for LLM consumption, not human browsing.
+
 🔥 [**ARIS-Code CLI — 独立安装版**](docs/ARIS-Code-README_CN.md) · [English](docs/ARIS-Code-README_EN.md) | [⬇️ Download](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep/releases/latest)
 
-> 📰 **ARIS-Code v0.3.3** (2026-04-04) — Fix all config loading crashes for Claude Code hooks compatibility
+> 📰 **ARIS-Code v0.4.3** (2026-04-17) — **Third-party Anthropic-compat proxy support** (Bedrock etc.) | Skip beta flags that proxies reject | Propagate custom base URL for `anthropic` provider | Credit [@screw-44](https://github.com/screw-44)
 >
 > <details><summary>Previous versions</summary>
+>
+> **v0.4.2** (2026-04-17) — **Auto-compaction corruption fix** | Compaction summary preserved on OpenAI-compat executors | Shell-provided API keys no longer erased on launch
+>
+> **v0.4.1** (2026-04-15) — **Plan mode** (`/plan`) | Cooperative Ctrl+C interrupt | Auto-retry (429/5xx/network) | **Research Wiki** 📚 (persistent knowledge base) | **Self-Evolution** 🧬 (`/meta-optimize`) | Local models (LM Studio/Ollama) | 62 skills synced
+>
+> **v0.3.11** (2026-04-13) — Reviewer Anthropic-compatible mode (Claude via proxy)
+>
+> **v0.3.9** (2026-04-11) — Proxy/custom base URL (CCSwitch) | Local models (LM Studio/Ollama) | Windows (experimental)
+>
+> **v0.3.5** (2026-04-08) — **Research Wiki** (persistent papers/ideas/experiments/claims + relationship graph) | **Meta-Optimize** self-evolution (analyze logs → propose SKILL.md patches)
 >
 > **v0.3.0** (2026-04-03) — Multi-file memory index | Rich task system (TodoWrite) | `/plan` | Security hardening
 >
@@ -36,7 +48,7 @@
 >
 > *💡 ARIS is a methodology, not a platform. What matters is the research workflow — take it wherever you go. 🌱*
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19415257.svg)](https://doi.org/10.5281/zenodo.19415257) · [![Featured on PaperWeekly](https://img.shields.io/badge/Featured%20on-PaperWeekly-red?style=flat)](https://mp.weixin.qq.com/s/tDniVryVGjDkkkWl-5sTkQ) · [![PaperWeekly — MiniMax-M2.7](https://img.shields.io/badge/PaperWeekly-MiniMax--M2.7-red?style=flat)](https://mp.weixin.qq.com/s/KLFU74lAL2FAIc9K6i1Kqg) · [![Featured in awesome-agent-skills](https://img.shields.io/badge/Featured%20in-awesome--agent--skills-blue?style=flat&logo=github)](https://github.com/VoltAgent/awesome-agent-skills) · [![AI Digital Crew - Project of the Day](https://img.shields.io/badge/AI%20Digital%20Crew-Project%20of%20the%20Day%20(2026.03.14)-orange?style=flat)](https://aidigitalcrew.com) · [💬 Join Community](#-community) · [![Cite](https://img.shields.io/badge/📖_Cite_Us-BibTeX-green?style=flat)](#-citation)
+[![Featured on PaperWeekly](https://img.shields.io/badge/Featured%20on-PaperWeekly-red?style=flat)](https://mp.weixin.qq.com/s/tDniVryVGjDkkkWl-5sTkQ) · [![PaperWeekly — MiniMax-M2.7](https://img.shields.io/badge/PaperWeekly-MiniMax--M2.7-red?style=flat)](https://mp.weixin.qq.com/s/KLFU74lAL2FAIc9K6i1Kqg) · [![Featured in awesome-agent-skills](https://img.shields.io/badge/Featured%20in-awesome--agent--skills-blue?style=flat&logo=github)](https://github.com/VoltAgent/awesome-agent-skills) · [![AI Digital Crew - Project of the Day](https://img.shields.io/badge/AI%20Digital%20Crew-Project%20of%20the%20Day%20(2026.03.14)-orange?style=flat)](https://aidigitalcrew.com) · [💬 Join Community](#-community) · [![Cite](https://img.shields.io/badge/📖_Cite_Us-BibTeX-green?style=flat)](#-citation)
 
 Custom [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skills for autonomous ML research workflows. These skills orchestrate **cross-model collaboration** — Claude Code drives the research while an external LLM (via [Codex MCP](https://github.com/openai/codex)) acts as a critical reviewer. 🔀 **Also supports [alternative model combinations](#-alternative-model-combinations) (Kimi, LongCat, DeepSeek, etc.) — no Claude or OpenAI API required.** For example, [MiniMax-M2.7 + GLM-5 or GLM-5 + MiniMax-M2.7](docs/MiniMax-GLM-Configuration.md). 🤖 **[Codex CLI native](skills/skills-codex/)** — full skill set also available for OpenAI Codex. 🖱️ **[Cursor](docs/CURSOR_ADAPTATION.md)** — works in Cursor too. 🖥️ **[Trae](docs/TRAE_ARIS_RUNBOOK_EN.md)** — ByteDance AI IDE. 🚀 **[Antigravity](docs/ANTIGRAVITY_ADAPTATION.md)** — Google's agent-first IDE. 🆓 **[Free tier via ModelScope](docs/MODELSCOPE_GUIDE.md) — zero cost, zero lock-in.**
 
@@ -47,10 +59,12 @@ Custom [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skills for 
 > 💭 **Why two models, not more?** Two is the minimum needed to break self-play blind spots, and 2-player games converge to Nash equilibrium far more efficiently than n-player ones. Adding more reviewers increases API cost and coordination overhead with diminishing returns — the biggest gain is going from 1→2, not 2→4.
 >
 > Claude Code's strength is fast, fluid execution; Codex (GPT-5.4 xhigh) is slower but more deliberate and rigorous in critique. These complementary styles — **speed × rigor** — produce better outcomes than either model talking to itself.
+>
+> 🧿 **Want the strongest possible reviewer?** Add `— reviewer: oracle-pro` to any skill to route reviews through **GPT-5.4 Pro** via [Oracle MCP](https://github.com/steipete/oracle). Pro-level reasoning for proof verification, experiment auditing, and final stress tests. Works with API key or free browser mode. [Setup →](#-optional-gpt-54-pro-via-oracle)
 
 ## 🎯 More Than Just a Prompt
 
-> These are full pipelines — you can also use each workflow independently. Already have an idea? Skip to Workflow 1.5. Have results? Jump to Workflow 3. Got reviews? Jump to Workflow 4. See [Quick Start](#-quick-start) for all commands and [Workflows](#-workflows) for the full breakdown.
+> These are full pipelines — you can also use each workflow independently. Already have an idea? Skip to Workflow 1.5. Have results? Jump to Workflow 3. Got reviews? Jump to Workflow 4. Want persistent memory? Enable [Research Wiki](#-research-wiki--persistent-research-memory). See [Quick Start](#-quick-start) for all commands and [Workflows](#-workflows) for the full breakdown.
 
 **Basic mode** — give ARIS a research direction, it handles everything:
 
@@ -99,28 +113,46 @@ Two outputs: `PASTE_READY.txt` (exact char count, paste to venue) + `REBUTTAL_DR
 
 > *💡 From idea to paper to podium — one toolchain. 🌱*
 
-## 🏆 Papers Accepted with ARIS
+## 🏆 Papers Built with ARIS
 
 | Paper | Score | Venue | Author | Stack |
 |-------|:-----:|-------|--------|-------|
 | CS Paper | **8/10** "clear accept" | CS Conference | [@DefanXue](https://github.com/DefanXue) & [@Monglitay](https://github.com/Monglitay) | Claude Code + GPT-5.4 |
 | AAAI Paper | **7/10** "good paper, accept" | AAAI 2026 Main Technical | [@xinbo820-web](https://github.com/xinbo820-web) | Pure Codex CLI |
+| UAV-CC | Under review | IEEE TGRS | [@wxx827](https://github.com/wxx827) | Claude Opus 4.6 + Codex 5.4 xhigh + Cursor |
 
-> 🎉 Built entirely with ARIS — from idea to acceptance. [Full details + reviewer screenshots →](#-community-showcase--papers-built-with-aris)
+> 🎉 Built with ARIS — from idea to submission. [Full details + PDFs →](#-community-showcase--papers-built-with-aris)
 
 ## 📢 What's New
 
+- **2026-04-17** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🔀 **`/experiment-queue` integrated into Workflow 1.5 + research-pipeline** — `experiment-bridge` Phase 4 Deploy now auto-routes by milestone job count: ≤5 jobs → `/run-experiment`, ≥10 jobs or phase dependencies → `/experiment-queue` (with OOM retry, stale-screen cleanup, wave-transition gating, crash-safe state). New `--- batch: queue` override for global force-queue mode. Large multi-seed sweeps from `EXPERIMENT_PLAN.md` (e.g., 36-cell `N × seed × n_train` grids) now get proper orchestration without manual queue invocation
+- **2026-04-17** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🔗 **[Project-local symlink install](tools/install_aris.sh)** (resolves [#118](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep/issues/118)) — new recommended default install. `bash tools/install_aris.sh` auto-detects platform (Claude Code / Codex CLI), creates `.claude/skills/aris` or `.agents/skills/aris` symlink to the ARIS repo, adds a managed `<!-- ARIS:BEGIN -->` block to `CLAUDE.md` / `AGENTS.md` telling the agent to use only project-local skills, and records install metadata in `.aris/skill-source.txt`. **Solves the skill collision problem** when ARIS is mixed with Superpowers / OpenHands / other community packs in the same global skill directory. PowerShell version (`install_aris.ps1`) ships with junction support for Windows. **`smart_update.sh --target-subdir`** flag added for `.agents/skills/aris` (Codex) project-copy installs; symlinked installs now correctly refuse `smart_update` and direct users to `git pull`. Global install remains supported for power users
+- **2026-04-16** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🎨 **[`/figure-spec`](skills/figure-spec/SKILL.md)** — deterministic JSON→SVG renderer packaged as a first-class skill. Preferred default for architecture/workflow/pipeline/audit-cascade figures in papers. Shape-aware edge clipping (rect/circle/ellipse/diamond), self-loops, curved edges, multi-line labels with CJK width estimation. Editable vector output, reproducible (same spec → same SVG), no external API. **Phase 2b in Workflow 3 restored**: `illustration: figurespec` (new default) / `gemini` / `mermaid` / `false` — 4-way illustration selector with complementary strengths
+- **2026-04-16** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) ⚙️ **[`/experiment-queue`](skills/experiment-queue/SKILL.md)** — SSH job queue for multi-seed/multi-config ML experiments. Designed from real 36-cell NeurIPS sweep pain points: OOM-aware retry with backoff, stale-screen cleanup, wave-transition race prevention, teacher→student phase dependencies, crash-safe scheduler that resumes from JSON state. Declarative grid specs expand automatically (e.g., `N × seed × n_train → 36 jobs`). Configurable `conda_hook` + `gpu_free_threshold_mib` for non-standard environments. Use for ≥10 jobs; `/run-experiment` stays for ad-hoc
+- **2026-04-15** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🛡️ **Paper Writing Pipeline Hardening** — 10 empirically-motivated patches from a real NeurIPS run. `REVIEWER_BIAS_GUARD=true`: every review round uses a fresh thread (codex-reply inflated 3→8/10). Reviewer Independence Protocol: no fix summaries to reviewer. Step 4.5 Restatement Regression Test: catches theorem drift across fix rounds. Step 5.5 Kill Argument Exercise: final-round adversarial attack/defense for theory papers. Location-aware overfull blocking. Theory Paper Consistency Pass in `/paper-write`. Enforced Bib Hygiene with DBLP/CrossRef validation. Phase 5.5 Mandatory Final Claim Audit as submission gate. **Review Tracing Protocol**: full prompt/response pairs saved to `.aris/traces/` for reviewer-independence audit ([`review-tracing.md`](skills/shared-references/review-tracing.md), [`save_trace.sh`](tools/save_trace.sh)). Inspired by community contribution from @李傲龍
+- **2026-04-15** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🎨 **[FigureSpec Renderer v2](tools/figure_renderer.py)** — deterministic JSON→SVG figure generation for academic papers. Shape-aware edge clipping (rect/circle/ellipse/diamond), self-loops, curved edges, multi-line labels with CJK width estimation, comprehensive validation (type checks, structure, palette). Went through 5 rounds of Codex review (3/10→7/10). All architecture and workflow diagrams in the ARIS tech report were generated with this pipeline. New `--- mode: vector` for `/paper-illustration` skill
+- **2026-04-14** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 📋 **[`/paper-claim-audit`](skills/paper-claim-audit/SKILL.md)** — zero-context paper-to-evidence verification. Fresh reviewer with NO prior context compares every number in the paper against raw result files. Catches rounding inflation, best-seed cherry-pick, config mismatch, delta errors, scope overclaim. Auto-integrated into Workflow 3 (Phase 4.7). Completes the 3-layer audit chain: `/experiment-audit` (code) → `/result-to-claim` (science) → `/paper-claim-audit` (reporting). 👁️ **Visual PDF review** also added to improvement loop — reviewer now sees compiled PDF, not just LaTeX source. Inspired by [Hermes Agent](https://github.com/NousResearch/hermes-agent/tree/main/skills/research/research-paper-writing)
+- **2026-04-13** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🧿 **[GPT-5.4 Pro via Oracle](skills/shared-references/reviewer-routing.md)** — `— reviewer: oracle-pro` on any skill for the strongest available reviewer. API mode (fast) or browser mode (free). Supported on: `/research-review`, `/auto-review-loop`, `/experiment-audit`, `/proof-checker`, `/rebuttal`, `/idea-creator`, `/research-lit`. Default stays Codex xhigh. Not installed = zero impact. [Setup →](#-optional-gpt-54-pro-via-oracle)
+- **2026-04-13** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🔬 **[`/proof-checker`](skills/proof-checker/SKILL.md)** — rigorous mathematical proof verification via cross-model review. 20-category issue taxonomy, two-axis severity, side-condition checklists (DCT/MCT/Fubini/IFT/...), counterexample red team, proof-obligation ledger. Auto-integrated into Workflow 3: detects `\begin{theorem}` and runs before improvement loop. Complements `/proof-writer`
+- **2026-04-10** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) ⚡ **[Effort Levels](skills/shared-references/effort-contract.md)** — `— effort: lite | balanced | max | beast`. Controls work intensity across all skills: papers found, ideas generated, review rounds, writing depth. Codex reasoning stays `xhigh` always. `beast` = every knob to maximum for top-venue sprints. Default `balanced` = zero change for existing users. [Details →](#-effort-levels)
+- **2026-04-10** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🔎 **[DeepXiv integration](skills/deepxiv/SKILL.md)** — progressive paper retrieval via DeepXiv CLI. Opt-in: `— sources: deepxiv` or `— sources: all, deepxiv`. Staged reading: search → brief → head → section. `pip install deepxiv-sdk` to enable. Community contribution by [@DreamEnding](https://github.com/DreamEnding)
+- **2026-04-10** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🛡️ **[`/experiment-audit`](skills/experiment-audit/SKILL.md)** — cross-model experiment integrity verification. GPT-5.4 reads your eval scripts and results directly, checks for fake ground truth, self-normalized scores, phantom results, and scope inflation ([#131](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep/issues/131), [#57](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep/issues/57)). Advisory — warns loudly, never blocks. `/result-to-claim` auto-reads audit if present. New [experiment-integrity.md](skills/shared-references/experiment-integrity.md) shared reference. **The executor must never judge its own integrity.**
+- **2026-04-10** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🧠 **[`tools/smart_update.sh`](tools/smart_update.sh)** — intelligent skill updater. Compares local vs upstream, detects personal customizations (server paths, API keys), only updates safe skills. `bash tools/smart_update.sh --apply`
+- **2026-04-10** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🏆 **Community paper: [UAV-CC](community_papers/UAV-CC.pdf)** — first community paper with full PDF archived. UAV change captioning benchmark for IEEE TGRS by [@wxx827](https://github.com/wxx827). Stack: Claude Opus 4.6 + Codex 5.4 xhigh + Cursor. Papers now archived in `community_papers/`
+- **2026-04-08** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 📚 **[`/research-wiki`](skills/research-wiki/SKILL.md)** — persistent research knowledge base inspired by [Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f). Accumulates papers, ideas, experiments, and claims across the entire research lifecycle with typed relationships. Wiki-aware hooks in `/research-lit` (ingest papers), `/idea-creator` (read wiki + write ideas back), and `/result-to-claim` (update claim status + trigger re-ideation). Failed ideas become anti-repetition memory. **ARIS now learns from its mistakes.**
+- **2026-04-05** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🧬 **[`/meta-optimize`](skills/meta-optimize/SKILL.md)** — outer-loop harness optimization for ARIS. Passively logs skill invocations, tool calls, failures, and parameter overrides via [Claude Code hooks](templates/claude-hooks/meta_logging.json). Run `/meta-optimize` to analyze accumulated usage data and propose SKILL.md improvements — reviewer-gated, user-approved. Inspired by [Meta-Harness](https://arxiv.org/abs/2603.28052) (Lee et al., 2026). **ARIS now optimizes itself.**
 - **2026-04-04** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🔧 **Codex Plugin deep integration** — `/codex:rescue` now auto-invoked when experiments fail (Workflow 1.5) or LaTeX won't compile (Workflow 3). GPT independently diagnoses the bug before Claude retries — two AI debuggers are better than one. Optional: `codex exec` powers nightmare review, `/codex:rescue` powers auto-debug. [Setup →](#optional-codex-plugin-for-code-review)
 - **2026-04-03** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) ☁️ **[Modal serverless GPU](skills/serverless-modal/SKILL.md)** — no GPU? `gpu: modal` in CLAUDE.md, one command (`modal run launcher.py`), no SSH, no Docker, auto scale-to-zero. **$30/month free tier** — enough to try ARIS experiments without any hardware. `pip install modal && modal setup` and go. Community contribution by [@zeyuzhangzyz](https://github.com/zeyuzhangzyz)
 - **2026-04-03** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🎮 **Reviewer Difficulty Levels** — `medium` (default, unchanged), `hard` (reviewer memory + debate protocol), `nightmare` (GPT reads repo directly via `codex exec` — Claude can't hide anything). `— difficulty: nightmare` for maximum stress test before submission
-- **2026-03-30** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🔥 **Auto-debug & exhaust-before-surrender** — experiment-bridge now auto-diagnoses failures (OOM, import, path, CUDA, NaN) and retries up to 3× before giving up. auto-review-loop must try 2+ solution paths before conceding any reviewer concern. Inspired by [PUA](https://github.com/tanweai/pua)
-- **2026-03-30** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) ☁️ **[Vast.ai GPU rental](skills/vast-gpu/SKILL.md)** — no GPU? `gpu: vast` in CLAUDE.md, ARIS auto-rents cheapest GPU, runs experiment, destroys when done. Community contribution by [@YIHONG-JIN](https://github.com/YIHONG-JIN). 🔧 **MiniMax M2.7 upgrade** — API URL fix + model upgrade + tests. By [@octo-patch](https://github.com/octo-patch)
-- **2026-03-27** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 📄 **IEEE venue support** — `IEEE_JOURNAL` (TPAMI/TIP/TNNLS) + `IEEE_CONF` (ICC/GLOBECOM/INFOCOM/ICASSP). Official IEEEtran templates. **9 venue families now.** 🔎 **[Semantic Scholar](skills/semantic-scholar/SKILL.md)** — search published venue papers beyond arXiv (`— sources: semantic-scholar`). Community contributions by [@ypd666](https://github.com/ypd666)
-- **2026-03-26** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 📄 **Document-based input** — drop a `RESEARCH_BRIEF.md` in your project, `/idea-discovery` and `/research-pipeline` auto-detect it. No more squeezing complex research directions into one line. [Template](templates/RESEARCH_BRIEF_TEMPLATE.md)
-- **2026-03-24** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 📝 **[Workflow 4: `/rebuttal`](skills/rebuttal/SKILL.md)** — post-submission rebuttal pipeline. Parse reviews → atomize → strategy → draft → safety check → GPT-5.4 stress test → finalize (strict + rich versions) → follow-up rounds. 3 safety gates (no fabrication, no overpromise, full coverage). `quick mode` for analysis only. `auto experiment` for supplementary experiments. Designed from 5 successful rebuttal case studies + 3 rounds GPT-5.4 xhigh design review
-- **2026-03-23** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🔧 **3 skills integrated into core workflows**: `/training-check`, `/result-to-claim`, `/ablation-planner`. 📦 **`compact` mode** — generate lean summary files for short-context models and session recovery (`— compact: true`). 🔄 **research-refine checkpoint** — auto-resume after interruption. Community contributions by [@JingxuanKang](https://github.com/JingxuanKang) & [@couragec](https://github.com/couragec)
 <details>
-<summary>Earlier updates (2026-03-12 — 2026-03-22, 16 entries)</summary>
+<summary>Earlier updates (2026-03-12 — 2026-03-30, 22 entries)</summary>
+
+- **2026-03-30** — 🔥 **Auto-debug & exhaust-before-surrender** — experiment-bridge auto-diagnoses failures (OOM, import, CUDA, NaN) and retries up to 3×. Inspired by [PUA](https://github.com/tanweai/pua)
+- **2026-03-30** — ☁️ **[Vast.ai GPU rental](skills/vast-gpu/SKILL.md)** — `gpu: vast` auto-rents cheapest GPU. By [@YIHONG-JIN](https://github.com/YIHONG-JIN). 🔧 MiniMax M2.7 upgrade by [@octo-patch](https://github.com/octo-patch)
+- **2026-03-27** — 📄 **IEEE venue support** (9 families). 🔎 **[Semantic Scholar](skills/semantic-scholar/SKILL.md)**. By [@ypd666](https://github.com/ypd666)
+- **2026-03-26** — 📄 **Document-based input** — `RESEARCH_BRIEF.md` auto-detect
+- **2026-03-24** — 📝 **[Workflow 4: `/rebuttal`](skills/rebuttal/SKILL.md)** — 7-phase pipeline, 3 safety gates
+- **2026-03-23** — 🔧 `/training-check`, `/result-to-claim`, `/ablation-planner` integrated. 📦 `compact` mode. By [@JingxuanKang](https://github.com/JingxuanKang) & [@couragec](https://github.com/couragec)
 
 - **2026-03-22** — 📋 **[Templates](templates/)** — input templates for every workflow. 📄 **7 venue templates** — CVPR, ACL, AAAI, ACM MM added. 🛡️ **Anti-hallucination fix** — Workflow 2 enforces DBLP → CrossRef → [VERIFY]. 🔗 **`base repo`** — clone a GitHub repo as base codebase (`— base repo: https://github.com/org/project`)
 - **2026-03-22** — 🔍 **[Codex + Gemini review guide](docs/CODEX_GEMINI_REVIEW_GUIDE.md)** — Codex executes, Gemini reviews via local `gemini-review` MCP bridge. [CN](docs/CODEX_GEMINI_REVIEW_GUIDE_CN.md)
@@ -152,6 +184,11 @@ git clone https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep.git
 mkdir -p ~/.claude/skills/    # create if it doesn't exist (new Claude Code versions)
 cp -r Auto-claude-code-research-in-sleep/skills/* ~/.claude/skills/
 
+# 1b. Update skills (when upstream has new versions)
+cd Auto-claude-code-research-in-sleep && git pull
+bash tools/smart_update.sh          # dry-run: shows what's new/changed/safe
+bash tools/smart_update.sh --apply  # apply: adds new + updates safe ones
+
 # 2. Set up Codex MCP (for review skills)
 npm install -g @openai/codex
 codex setup                    # set model to gpt-5.4 when prompted
@@ -165,9 +202,46 @@ claude
 > /paper-writing "NARRATIVE_REPORT.md"       # Workflow 3: narrative → polished PDF
 > /rebuttal "paper/ + reviews" — venue: ICML    # Workflow 4: parse reviews → draft rebuttal → follow-up
 > /research-pipeline "your research direction"  # Full pipeline: Workflow 1 → 1.5 → 2 → 3 end-to-end
+> /research-wiki init                           # 📚 Enable persistent research memory (one-time)
+> /meta-optimize                                # Meta: analyze usage logs → propose skill improvements
 ```
 
+> 📚 **Research Wiki (optional):** Give ARIS persistent memory across sessions. Papers, ideas, failed experiments — nothing is forgotten:
+> ```bash
+> # In Claude Code:
+> > /research-wiki init                         # creates research-wiki/ in your project
+> # That's it. From now on, /research-lit auto-ingests papers, /idea-creator reads
+> # the wiki before brainstorming (and writes ideas back), /result-to-claim updates
+> # claim status. Failed ideas become anti-repetition memory for future ideation.
+> ```
+> See [Research Wiki](#-research-wiki--persistent-research-memory) for the full guide.
+
+> 🧬 **Meta-optimization (optional):** Run these in your **normal terminal** (not inside Claude Code) to enable passive usage logging:
+> ```bash
+> # One-time setup in your project directory
+> mkdir -p .claude .aris/meta tools/meta_opt
+> cp Auto-claude-code-research-in-sleep/templates/claude-hooks/meta_logging.json .claude/settings.json
+> cp Auto-claude-code-research-in-sleep/tools/meta_opt/*.sh tools/meta_opt/
+> chmod +x tools/meta_opt/*.sh
+> # Then start Claude Code — hooks are active immediately
+> claude
+> ```
+> Events are logged to **both** project-level (`.aris/meta/events.jsonl`) and global (`~/.aris/meta/events.jsonl`) logs. After 5+ workflow runs, run `/meta-optimize` to see data-driven improvement proposals. Use `/meta-optimize --global` to analyze trends across all your projects. See [Workflow M](#workflow-m-meta-optimize--aris-optimizes-itself) for details.
+
 > 📝 **Templates available!** See [`templates/`](templates/) for ready-to-use input templates for every workflow — [research brief](templates/RESEARCH_BRIEF_TEMPLATE.md) (Workflow 1), [experiment plan](templates/EXPERIMENT_PLAN_TEMPLATE.md) (Workflow 1.5), [narrative report](templates/NARRATIVE_REPORT_TEMPLATE.md) (Workflow 3), [paper plan](templates/PAPER_PLAN_TEMPLATE.md) (Workflow 3).
+>
+> 🔎 **Optional: DeepXiv progressive retrieval**
+> ```bash
+> pip install deepxiv-sdk
+> ```
+> Then use [`/deepxiv`](skills/deepxiv/SKILL.md) directly or opt into it from `/research-lit` with `— sources: deepxiv` or `— sources: all, deepxiv`.
+>
+> 🔎 **Optional: Exa AI-powered web search**
+> ```bash
+> pip install exa-py
+> export EXA_API_KEY=your-key-here
+> ```
+> Then use [`/exa-search`](skills/exa-search/SKILL.md) directly or opt into it from `/research-lit` with `— sources: exa` or `— sources: all, exa`. Covers blogs, docs, news, and research papers with built-in content extraction.
 >
 > 🗑️ **Uninstall:** To remove ARIS skills without affecting your own personal skills:
 > ```bash
@@ -180,7 +254,7 @@ claude
 > |-----------|---------|-------------|
 > | `AUTO_PROCEED` | `true` | Auto-continue at idea selection gate. Set `false` to manually pick which idea to pursue before committing GPU time |
 > | `human checkpoint` | `false` | Pause after each review round so you can read the score, give custom modification instructions, skip specific fixes, or stop early |
-> | `sources` | `all` | Which literature sources to search: `zotero`, `obsidian`, `local`, `web`, `semantic-scholar`, or `all`. Note: `semantic-scholar` must be explicitly listed — not included in `all` |
+> | `sources` | `all` | Which literature sources to search: `zotero`, `obsidian`, `local`, `web`, `semantic-scholar`, `deepxiv`, `exa`, or `all`. Note: `semantic-scholar`, `deepxiv`, and `exa` must be explicitly listed — not included in `all` |
 > | `arxiv download` | `false` | Download top relevant arXiv PDFs during literature survey. When `false`, only fetches metadata (title, abstract, authors) |
 > | `DBLP_BIBTEX` | `true` | Fetch real BibTeX from [DBLP](https://dblp.org)/[CrossRef](https://www.crossref.org) instead of LLM-generated entries. Eliminates hallucinated citations. Zero install |
 > | `code review` | `true` | GPT-5.4 xhigh reviews experiment code before GPU deployment. Set `false` to skip |
@@ -191,15 +265,24 @@ claude
 > | `gpu` | `local` | GPU target: `local` (default), `remote` (SSH server), or `vast` (rent on-demand from [Vast.ai](https://vast.ai) — auto-provision, auto-destroy) |
 > | `compact` | `false` | Generate compact summary files (`IDEA_CANDIDATES.md`, `findings.md`, `EXPERIMENT_LOG.md`) for short-context models and session recovery |
 > | `ref paper` | `false` | Reference paper to build on (PDF path or arXiv URL). Summarized first, then ideas extend/improve it. Combine with `base repo` for paper+code workflows |
+> | `effort` | `balanced` | Work intensity: `lite` (0.4x tokens), `balanced` (default), `max` (2.5x), `beast` (5-8x). Controls breadth/depth/iterations. Codex reasoning always `xhigh`. See [Effort Levels](#-effort-levels) |
+> | `reviewer` | `codex` | Reviewer backend: `codex` (GPT-5.4 xhigh, default), `oracle-pro` (GPT-5.4 Pro via [Oracle](https://github.com/steipete/oracle) — strongest reasoning). See [Setup →](#-optional-gpt-54-pro-via-oracle) |
 > | `difficulty` | `medium` | Reviewer adversarial level: `medium` (default), `hard` (+ memory + debate), `nightmare` (+ GPT reads repo via `codex exec`) |
 >
 > ```
 > /research-pipeline "your topic" — AUTO_PROCEED: false                          # pause at idea selection gate
 > /research-pipeline "your topic" — human checkpoint: true                       # pause after each review round to give feedback
 > /research-pipeline "your topic" — sources: zotero, web                         # only search Zotero + web (skip local PDFs)
+> /research-pipeline "your topic" — sources: all, deepxiv                        # default sources plus DeepXiv progressive retrieval
+> /research-pipeline "your topic" — sources: all, exa                            # default sources plus Exa AI-powered web search
 > /research-pipeline "your topic" — arxiv download: true                         # download top arXiv PDFs during literature survey
 > /research-pipeline "your topic" — difficulty: nightmare                        # maximum adversarial review before submission
+> /research-pipeline "your topic" — effort: beast                               # all knobs to maximum — top-venue sprint
+> /research-pipeline "your topic" — effort: beast, reviewer: oracle-pro         # beast + GPT-5.4 Pro reviewer — ultimate mode
+> /research-pipeline "your topic" — effort: lite                                # quick exploration, save tokens
+> /research-pipeline "your topic" — effort: max, review_rounds: 3               # max effort but cap review at 3 rounds
 > /research-pipeline "your topic" — AUTO_PROCEED: false, human checkpoint: true  # combine options
+> /proof-checker "paper/" — reviewer: oracle-pro                                # Pro-level proof verification
 > ```
 
 > **Important:** Codex MCP uses the model from `~/.codex/config.toml`, not from skill files. Make sure it says `model = "gpt-5.4"` (recommended). Other options: `gpt-5.3-codex`, `gpt-5.2-codex`, `o3`. Run `codex setup` or edit the file directly.
@@ -210,6 +293,15 @@ claude
 
 See [full setup guide](#%EF%B8%8F-setup) for details and [alternative model combinations](#-alternative-model-combinations) if you don't have Claude/OpenAI API.
 
+> 🧠 **Update skills later?** Smart update analyzes what's safe:
+> ```bash
+> cd Auto-claude-code-research-in-sleep
+> git pull
+> bash tools/smart_update.sh          # dry-run: shows what's new/changed/safe
+> bash tools/smart_update.sh --apply  # apply: adds new + updates safe ones
+> ```
+> Compares local skills with upstream, detects personal customizations (server paths, API keys, etc.), and only updates skills that are safe to replace. Skills with your personal info are flagged for manual review.
+
 ## ✨ Features
 
 - 📊 **31 composable skills** — mix and match, or chain into full pipelines (`/idea-discovery`, `/auto-review-loop`, `/paper-writing`, `/research-pipeline`)
@@ -217,7 +309,7 @@ See [full setup guide](#%EF%B8%8F-setup) for details and [alternative model comb
 - 💡 **Idea discovery** — literature survey → brainstorm 8-12 ideas → novelty check → GPU pilot experiments → ranked report
 - 🔄 **Auto review loop** — 4-round autonomous review, 5/10 → 7.5/10 overnight with 20+ GPU experiments
 - 📝 **Paper writing** — narrative → outline → figures → LaTeX → PDF → auto-review (4/10 → 8.5/10), one command. Anti-hallucination citations via [DBLP](https://dblp.org)/[CrossRef](https://www.crossref.org)
-- 🤖 **Cross-model collaboration** — Claude Code executes, GPT-5.4 xhigh reviews. Adversarial, not self-play
+- 🤖 **Cross-model collaboration** — Claude Code executes, GPT-5.4 xhigh reviews. Adversarial, not self-play. Optional upgrade: `— reviewer: oracle-pro` for **GPT-5.4 Pro** (strongest reasoning) via [Oracle](https://github.com/steipete/oracle)
 - 📝 **Peer review** — review others' papers as a conference reviewer, with structured scoring and meta-review
 - 🖥️ **Review-driven experiments** — when GPT-5.4 says "run an ablation", Claude Code automatically writes the script, rsyncs to your GPU server, launches in screen, collects results, and folds them back into the paper. Just configure your server in `CLAUDE.md` ([setup guide](#%EF%B8%8F-gpu-server-setup-for-auto-experiments)). **No GPU?** Use `gpu: vast` to rent one from [Vast.ai](https://vast.ai) on demand
 - 🔀 **Flexible models** — default Claude × GPT-5.4, also supports [GLM, MiniMax, Kimi, LongCat, DeepSeek, etc.](#-alternative-model-combinations) — no Claude or OpenAI API required
@@ -237,6 +329,7 @@ See [full setup guide](#%EF%B8%8F-setup) for details and [alternative model comb
 
   </details>
 
+- 📚 **[Research Wiki](#-research-wiki--persistent-research-memory)** — persistent knowledge base that accumulates papers, ideas, experiments, and claims across the research lifecycle. Failed ideas become anti-repetition memory. ARIS learns from its mistakes and gets smarter with every run. Inspired by [Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
 - 🧩 **Extensible** — domain-specific skills welcome! Add a `SKILL.md` and open a PR. See [community skills](#-all-skills) like [`dse-loop`](skills/dse-loop/SKILL.md) (architecture/EDA)
 
 ---
@@ -263,6 +356,7 @@ Real projects where the ARIS pipeline was used end-to-end. **If you've used ARIS
 |-------|:------:|-------|----------|-------|
 | CS Paper | **8/10** — "Top 50% of accepted papers, clear accept" | CS Conference | [@DefanXue](https://github.com/DefanXue) & [@Monglitay](https://github.com/Monglitay) | Full ARIS pipeline: idea → experiments → auto-review → paper writing. Reviewer: "empirical findings are stark, well-supported, and expose a fundamental flaw" |
 | AAAI 2026 Paper | **7/10** — "Good paper, accept" | AAAI 2026 Main Technical | [@xinbo820-web](https://github.com/xinbo820-web) | Pure **Codex CLI** (ARIS-Codex skills). Accepted at AAAI 2026 |
+| [UAV-CC](community_papers/UAV-CC.pdf) | Under review | IEEE TGRS | [@wxx827](https://github.com/wxx827) | UAV change captioning benchmark. Claude Opus 4.6 (executor) + Codex GPT-5.4 xhigh (reviewer) + Cursor Opus 4.6 (assist). [PDF →](community_papers/UAV-CC.pdf) |
 
 <details><summary>Reviewer screenshots</summary>
 <br>
@@ -278,14 +372,14 @@ Domain-specific skills and external projects contributed by the community. PRs w
 
 > 💡 **How to use:** Community skills are not auto-wired into core workflows. To use one, ask your executor (Claude Code / OpenClaw / etc.) to read the skill's `SKILL.md`, then plug it into the appropriate workflow stage based on the description below.
 
-🎉 **Community Skills (12):** [research-refine](skills/research-refine/SKILL.md) · [experiment-plan](skills/experiment-plan/SKILL.md) · [grant-proposal](skills/grant-proposal/SKILL.md) · [paper-poster](skills/paper-poster/SKILL.md) · [paper-slides](skills/paper-slides/SKILL.md) · [mermaid-diagram](skills/mermaid-diagram/SKILL.md) · [proof-writer](skills/proof-writer/SKILL.md) · [comm-lit-review](skills/comm-lit-review/SKILL.md) · [dse-loop](skills/dse-loop/SKILL.md) · [idea-discovery-robot](skills/idea-discovery-robot/SKILL.md) · [formula-derivation](skills/formula-derivation/SKILL.md) · [paper-illustration](skills/paper-illustration/SKILL.md)
+🎉 **Community Skills (13):** [research-refine](skills/research-refine/SKILL.md) · [experiment-plan](skills/experiment-plan/SKILL.md) · [grant-proposal](skills/grant-proposal/SKILL.md) · [paper-poster](skills/paper-poster/SKILL.md) · [paper-slides](skills/paper-slides/SKILL.md) · [mermaid-diagram](skills/mermaid-diagram/SKILL.md) · [proof-writer](skills/proof-writer/SKILL.md) · [comm-lit-review](skills/comm-lit-review/SKILL.md) · [dse-loop](skills/dse-loop/SKILL.md) · [idea-discovery-robot](skills/idea-discovery-robot/SKILL.md) · [formula-derivation](skills/formula-derivation/SKILL.md) · [paper-illustration](skills/paper-illustration/SKILL.md) · [writing-systems-papers](skills/writing-systems-papers/SKILL.md)
 
-🌐 **External Projects & Docs (9):** [open-source-hardening-skills](https://github.com/zeyuzhangzyz/open-source-hardening-skills) · [CitationClaw](https://github.com/VisionXLab/CitationClaw) · [auto-hparam-tuning](https://github.com/zxh0916/auto-hparam-tuning) · [Antigravity Adaptation Guide](docs/ANTIGRAVITY_ADAPTATION.md) · [OpenClaw Adaptation Guide](docs/OPENCLAW_ADAPTATION.md) · [Cursor Adaptation Guide](docs/CURSOR_ADAPTATION.md) · [Codex+Claude Review Bridge](docs/CODEX_CLAUDE_REVIEW_GUIDE.md) · [Trae Adaptation Guide](docs/TRAE_ARIS_RUNBOOK_EN.md) · [paper-illustration](skills/paper-illustration/SKILL.md)
+🌐 **External Projects & Docs (11):** [open-source-hardening-skills](https://github.com/zeyuzhangzyz/open-source-hardening-skills) · [CitationClaw](https://github.com/VisionXLab/CitationClaw) · [auto-hparam-tuning](https://github.com/zxh0916/auto-hparam-tuning) · [paper-to-course](https://github.com/KaguraTart/paper-to-course) · [Antigravity Adaptation Guide](docs/ANTIGRAVITY_ADAPTATION.md) · [OpenClaw Adaptation Guide](docs/OPENCLAW_ADAPTATION.md) · [Cursor Adaptation Guide](docs/CURSOR_ADAPTATION.md) · [Codex+Claude Review Bridge](docs/CODEX_CLAUDE_REVIEW_GUIDE.md) · [Trae Adaptation Guide](docs/TRAE_ARIS_RUNBOOK_EN.md) · [paper-illustration](skills/paper-illustration/SKILL.md) · [MiniMax-AI/cli](https://github.com/MiniMax-AI/cli)
 
 > 🙌 Thanks to every contributor! We fold the tables below to keep the README readable — but every skill and project here is equally valued. PRs always welcome!
 
 <details>
-<summary><b>🎉 Community Skills (12)</b> — click to expand</summary>
+<summary><b>🎉 Community Skills (13)</b> — click to expand</summary>
 
 | Name | Domain | Description | Codex MCP? |
 |------|--------|-------------|-----------|
@@ -301,11 +395,12 @@ Domain-specific skills and external projects contributed by the community. PRs w
 | 🤖 [`idea-discovery-robot`](skills/idea-discovery-robot/SKILL.md) | Robotics / Embodied AI | Workflow 1 adaptation — grounds idea discovery in embodiment, benchmark, sim2real path, and real-robot safety constraints | Yes |
 | 📐 [`mermaid-diagram`](skills/mermaid-diagram/SKILL.md) | General | Mermaid diagrams (20+ types) — free alternative to `paper-illustration`, no API key needed | No |
 | 🔢 [`formula-derivation`](skills/formula-derivation/SKILL.md) | General | Research formula development — derivation, verification, and LaTeX formatting | No |
+| 🖥️ [`writing-systems-papers`](skills/writing-systems-papers/SKILL.md) | Systems | Paragraph-level blueprint for 10-12 page systems papers (OSDI/SOSP/ASPLOS/NSDI/EuroSys) — page allocation, writing patterns, self-check | Yes |
 
 </details>
 
 <details>
-<summary><b>🌐 External Projects & Docs (9)</b> — click to expand</summary>
+<summary><b>🌐 External Projects & Docs (11)</b> — click to expand</summary>
 
 | Name | Domain | Description |
 |------|--------|-------------|
@@ -319,6 +414,8 @@ Domain-specific skills and external projects contributed by the community. PRs w
 | 🤖 [`skills-codex`](skills/skills-codex/) | General | Codex CLI sync pack for the main research skills, now including `training-check`, `result-to-claim`, `ablation-planner`, `rebuttal`, plus the `shared-references/` support directory |
 | 🎛️ [auto-hparam-tuning](https://github.com/zxh0916/auto-hparam-tuning) | General | Automatic hyperparameter tuning — AI agent reads project, plans strategy, runs experiments, analyzes TensorBoard, learns from results. Hydra-based |
 | 🔁 [Codex+Claude Review Bridge](docs/CODEX_CLAUDE_REVIEW_GUIDE.md) | General | Codex executes + Claude reviews via local `claude-review` MCP bridge with async polling |
+| 📚 [paper-to-course](https://github.com/KaguraTart/paper-to-course) | Education | Convert research papers (PDF/LaTeX) into interactive six-module HTML courses with formula breakdowns, literature timelines, quizzes, and glossary tooltips — single bundled file, no server needed |
+| 🤖 [MiniMax-AI/cli](https://github.com/MiniMax-AI/cli) | General | Official MiniMax CLI — text, image, video, speech, and music generation + web search. `skill/SKILL.md` follows the agentskills.io standard. Drop-in companion for the Alt B (MiniMax reviewer) setup |
 
 </details>
 
@@ -332,6 +429,8 @@ These skills compose into a full research lifecycle. The four workflows can be u
 - **Ready to write the paper?** Workflow 3 → `/paper-writing` (or step by step: `/paper-plan` → `/paper-figure` → `/paper-write` → `/paper-compile` → `/auto-paper-improvement-loop`)
 - **Got reviews back? Need to rebuttal?** Workflow 4 → `/rebuttal` — parse reviews, draft safe rebuttal, follow-up rounds
 - **Full pipeline?** Workflow 1 → 1.5 → 2 → 3 → submit → 4 → `/research-pipeline` + `/rebuttal` — from idea to acceptance
+- **Want ARIS to remember and learn?** 📚 `/research-wiki init` — persistent memory across sessions. Papers, ideas, failed experiments compound over time
+- **Want ARIS to improve itself?** Workflow M → `/meta-optimize` — analyze usage logs, propose skill improvements, reviewer-gated
 
 > ⚠️ **Important:** These tools accelerate research, but they don't replace your own critical thinking. Always review generated ideas with your domain expertise, question the assumptions, and make the final call yourself. The best research comes from human insight + AI execution, not full autopilot.
 
@@ -341,6 +440,12 @@ These skills compose into a full research lifecycle. The four workflows can be u
 /research-lit → /idea-creator → /novelty-check → /research-refine → /experiment-bridge → /auto-review-loop → /paper-writing → submit → /rebuttal → accept! 🎉
   (survey)      (brainstorm)    (verify novel)   (refine method)   (implement+deploy)  (review & fix)      (write paper)   (send)   (reply to reviewers)
   ├────────────── Workflow 1: Idea Discovery ──────────────┤ ├ Workflow 1.5 ─┤ ├── Workflow 2 ──┤ ├── Workflow 3 ──┤         ├── Workflow 4 ──┤
+
+                                     📚 research-wiki (persistent memory — papers, ideas, experiments, claims)
+                                        ↕ reads before ideation, writes after every stage, failed ideas = anti-repetition memory
+
+                                              /meta-optimize (Workflow M — runs independently, improves ARIS itself)
+                                                 ↑ reads .aris/meta/events.jsonl (accumulated from all runs above)
 ```
 
 📝 **Blog post:** [梦中科研全流程开源](http://xhslink.com/o/2iV33fYoc7Q)
@@ -702,6 +807,236 @@ Got reviews back? `/rebuttal` parses them, builds a strategy, and drafts a venue
 - 🔒 **Commitment** — every promise is user-approved. No overpromising.
 - 🔒 **Coverage** — every reviewer concern is tracked. Nothing disappears.
 
+### 📚 Research Wiki — Persistent Research Memory
+
+> **"Stop re-deriving. Start compounding."** — inspired by [Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
+
+Without the wiki, ARIS is stateless — every `/idea-discovery` starts from scratch. With the wiki, ARIS accumulates knowledge across the entire research lifecycle: papers read, ideas tested, experiments run, claims verified or invalidated.
+
+**The key insight:** failed ideas are the most valuable memory. A researcher who knows what doesn't work generates better ideas than one starting from zero.
+
+**Setup:**
+```
+> /research-wiki init     # one-time, creates research-wiki/ in your project
+```
+
+**That's it.** Once initialized, the wiki works automatically:
+
+| When | What happens | Wiki action |
+|------|-------------|-------------|
+| `/research-lit` finds papers | Papers auto-ingested | `papers/<slug>.md` created, edges added, query_pack rebuilt |
+| `/idea-creator` runs | Reads wiki first | Failed ideas = banlist, gaps = search seeds, papers = known prior work |
+| `/idea-creator` finishes | ALL ideas written back | Both recommended AND eliminated ideas → `ideas/<id>.md` |
+| `/result-to-claim` judges | Results written back | Experiment page created, claim status updated (supported/invalidated) |
+| 3+ ideas fail | Re-ideation suggested | "💡 Consider re-running /idea-creator — the wiki now knows what doesn't work" |
+
+**Four entity types:**
+
+| Entity | What it stores | Example |
+|--------|---------------|---------|
+| 📄 **Paper** | Structured summary: thesis, method, limitations, reusable ingredients | `paper:chen2025_factorized_gap` |
+| 💡 **Idea** | Hypothesis, status (proposed/failed/succeeded), failure notes, lessons | `idea:001` |
+| 🧪 **Experiment** | Metrics, verdict, hardware, duration | `exp:001` |
+| 📋 **Claim** | Testable statement + evidence status (reported/supported/invalidated) | `claim:C1` |
+
+**Typed relationships** (stored in `graph/edges.jsonl`):
+```
+paper --extends--> paper              idea --inspired_by--> paper
+paper --contradicts--> paper          idea --tested_by--> experiment
+paper --addresses_gap--> gap          experiment --supports--> claim
+paper --supersedes--> paper           experiment --invalidates--> claim
+```
+
+**Spiral learning in action:**
+```
+Round 1: read 15 papers → wiki remembers → idea A → experiment → FAIL
+         wiki records: "A fails because OOM at batch>32, loss diverges"
+
+Round 2: /idea-creator reads wiki → sees A failed → generates idea D (avoids A's trap)
+         → experiment → PARTIAL SUCCESS
+         wiki records: "D works on small models, fails on large"
+
+Round 3: /idea-creator reads wiki → knows A failed + D partial → generates idea F
+         (combines D's success with new approach) → experiment → SUCCESS 🎉
+```
+
+**Subcommands:**
+```
+/research-wiki init                              # initialize wiki
+/research-wiki ingest "paper title" — arxiv: xxx  # manually add a paper
+/research-wiki query "topic"                      # rebuild query_pack.md
+/research-wiki update idea:001 — outcome: negative # update entity
+/research-wiki lint                               # health check (orphans, contradictions, stale claims)
+/research-wiki stats                              # overview (paper/idea/experiment/claim counts)
+```
+
+> 🔒 **Safe by design:** All workflow hooks are guarded by `if research-wiki/ exists`. No wiki = no impact. Zero dependencies (pure Python stdlib). You choose when to enable it.
+
+---
+
+### Workflow M: Meta-Optimize 🧬 (ARIS optimizes itself)
+
+> **"Analyze my usage patterns and improve your own skills."**
+
+Unlike Workflows 1–4 which optimize *research artifacts* (papers, code, experiments), Workflow M optimizes the *harness itself* — the SKILL.md instructions, default parameters, and convergence rules that govern how ARIS operates. Inspired by [Meta-Harness](https://arxiv.org/abs/2603.28052) (Lee et al., 2026).
+
+**Setup (one-time, in normal terminal):**
+```bash
+mkdir -p .claude .aris/meta tools/meta_opt
+cp Auto-claude-code-research-in-sleep/templates/claude-hooks/meta_logging.json .claude/settings.json
+cp Auto-claude-code-research-in-sleep/tools/meta_opt/*.sh tools/meta_opt/
+chmod +x tools/meta_opt/*.sh
+claude   # hooks active immediately
+```
+
+**Usage (after 5+ workflow runs):**
+```
+> /meta-optimize                        # analyze current project
+> /meta-optimize "auto-review-loop"     # focus on one skill
+> /meta-optimize --global               # analyze trends across ALL projects
+> /meta-optimize apply 1                # apply recommended change #1
+```
+
+**How it works:**
+
+1. 📊 **Passive logging** — Claude Code hooks silently record every skill invocation, tool call, failure, parameter override, and user prompt. Events are written to **both** project-level (`.aris/meta/events.jsonl`) and global (`~/.aris/meta/events.jsonl`, with a `"project"` tag) logs. Zero user effort.
+2. 🔍 **Pattern analysis** — `/meta-optimize` reads the log and identifies:
+   - Parameters users override most often (bad defaults)
+   - Tools that fail repeatedly in specific skills (missing error handling)
+   - Review score plateaus (convergence rules too loose/tight)
+   - Manual corrections users make (skill gaps)
+3. 🩹 **Patch proposal** — generates minimal diffs to target SKILL.md files with data-backed justifications
+4. 🔬 **Reviewer gate** — GPT-5.4 xhigh reviews each patch: does the evidence support it? could it hurt other users?
+5. ✅ **User approval** — only applied with explicit user consent. All changes are logged and reversible.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  Workflow M: Meta-Optimize                        │
+│                                                                  │
+│   Normal ARIS usage (W1-W4)                                      │
+│         │ (hooks log events passively)                           │
+│         ▼                                                        │
+│   .aris/meta/events.jsonl                                        │
+│         │                                                        │
+│         ▼                                                        │
+│   ┌──────────┐     ┌──────────┐     ┌──────────┐               │
+│   │ Analyze  │────▶│ Propose  │────▶│ GPT-5.4  │               │
+│   │ patterns │     │ SKILL.md │     │ reviews  │               │
+│   │          │     │ patches  │     │ patch    │               │
+│   └──────────┘     └──────────┘     └──────────┘               │
+│                                          │                       │
+│                                          ▼                       │
+│                                    User approves?                 │
+│                                     Yes → Apply                  │
+│                                     No  → Skip                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**What gets optimized (harness components):**
+| Component | Example |
+|-----------|---------|
+| Skill prompts | Reviewer instructions, quality gates, step descriptions |
+| Default parameters | `difficulty`, `MAX_ROUNDS`, `threshold` |
+| Convergence rules | When to stop the review loop, retry counts |
+| Error handling | Auto-debug patterns, failure recovery steps |
+
+**What does NOT get optimized:** research artifacts (papers, code, experiments) — that's what W1–W4 do.
+
+**Skills involved:** `meta-optimize`
+
+> 💡 This is a **maintenance workflow**, not part of the W1→W1.5→W2→W3→W4 research pipeline. Run it periodically, like `git gc` for your research harness.
+
+---
+
+### ⚡ Effort Levels
+
+> **"How hard should ARIS work?"** — Every skill accepts `— effort: lite | balanced | max | beast`.
+
+| Level | Tokens | Best for | What changes |
+|-------|:------:|----------|-------------|
+| `lite` | ~0.4x | Quick exploration, budget users | Fewer papers, ideas, rounds. Minimum viable depth |
+| `balanced` | 1x | Normal workflow (**default**) | Current ARIS behavior. Zero change for existing users |
+| `max` | ~2.5x | Serious submission prep | More papers, deeper review, more ablations |
+| `beast` | ~5-8x | Top-venue final sprint | Every knob to maximum. No budget limit |
+
+**What NEVER changes regardless of effort:**
+- Codex reasoning: **always xhigh** (reviewer quality is non-negotiable)
+- DBLP/CrossRef citations: **always on**
+- Reviewer independence: **always on**
+- Experiment integrity: **always on**
+
+```bash
+# Every skill accepts effort independently
+/research-lit "topic" — effort: beast              # 40-50 papers, 15+ queries
+/idea-creator "direction" — effort: lite           # 4-6 ideas, quick filter
+/auto-review-loop — effort: max                    # 6 rounds, 4-6 fixes/round
+
+# Mix with specific overrides
+/auto-review-loop — effort: beast, review_rounds: 3  # beast everything, but cap at 3 rounds
+
+# Full pipeline
+/research-pipeline "your topic" — effort: beast    # top-venue sprint mode
+```
+
+<details>
+<summary><b>Full effort comparison table</b> — click to expand</summary>
+
+| Skill | Dimension | lite | balanced | max | beast |
+|-------|-----------|:----:|:--------:|:---:|:-----:|
+| research-lit | papers | 6-8 | 10-15 | 18-25 | 40-50 |
+| idea-creator | ideas | 4-6 | 8-12 | 12-16 | 20-30 |
+| idea-creator | pilots | 1-2 | 2-3 | 3-4 | 5-6 |
+| novelty-check | claims | 2-3 | 3-4 | 4-6 | all |
+| research-refine | rounds | 3 | 5 | 7 | 10+ |
+| experiment-plan | experiments | 3 | 5 | 7 | 10+ |
+| experiment-plan | seeds | 1 | 3 | 5 | 5 |
+| auto-review-loop | rounds | 2 | 3-4 | 6 | 8+ |
+| paper-improvement | rounds | 1 | 2 | 3 | 5 |
+| paper-illustration | iterations | 2 | 3 | 5 | 7 |
+| rebuttal | stress tests | 0-1 | 1 | 2 | 3 |
+| experiment-audit | depth | skip | basic | full | line-by-line |
+
+</details>
+
+> 📖 Full specification: [`shared-references/effort-contract.md`](skills/shared-references/effort-contract.md)
+
+### 🧿 Optional: GPT-5.4 Pro via Oracle
+
+> **For expert researchers who want the strongest possible reviewer.**
+
+[Oracle](https://github.com/steipete/oracle) unlocks **GPT-5.4 Pro** as an ARIS reviewer — the strongest reasoning model available. Pro excels at deep mathematical proof verification, line-by-line code auditing, and complex experimental design critique.
+
+**Setup:**
+```bash
+# 1. Install Oracle
+npm install -g @steipete/oracle
+
+# 2. Add Oracle MCP to Claude Code
+claude mcp add oracle -s user -- oracle-mcp
+
+# 3. Restart Claude Code
+
+# 4a. API mode (fast, recommended):
+export OPENAI_API_KEY="your-key"
+
+# 4b. Browser mode (free, no API key — log in to ChatGPT in Chrome):
+# Just open Chrome → chatgpt.com → log in
+```
+
+**Usage — add `— reviewer: oracle-pro` to any skill:**
+```bash
+/research-review "my draft" — reviewer: oracle-pro          # Pro-level paper critique
+/proof-checker "paper/" — reviewer: oracle-pro              # deepest mathematical verification
+/experiment-audit — reviewer: oracle-pro                    # Pro audits your eval code
+/auto-review-loop "scope" — reviewer: oracle-pro            # Pro stress test each round
+/idea-creator "direction" — reviewer: oracle-pro            # Pro evaluates your ideas
+/rebuttal "paper/ + reviews" — reviewer: oracle-pro         # Pro stress tests your rebuttal
+```
+
+**Default is always Codex xhigh.** Oracle not installed = zero impact. `— reviewer: oracle-pro` without Oracle installed = graceful fallback to Codex + warning.
+
+> 📖 Full specification: [`shared-references/reviewer-routing.md`](skills/shared-references/reviewer-routing.md)
+
 ---
 
 ## 🧰 All Skills
@@ -770,6 +1105,9 @@ Got reviews back? `/rebuttal` parses them, builds a strategy, and drafts a venue
 |-------|-------------|:---:|
 | 📄 [`arxiv`](skills/arxiv/SKILL.md) | Search, download, and summarize arXiv papers. Standalone or `/research-lit` supplement | No |
 | 🔎 [`semantic-scholar`](skills/semantic-scholar/SKILL.md) | Search published venue papers (IEEE, ACM, Springer) via Semantic Scholar API. Citation counts, venue metadata, TLDR | No |
+| 📚 [`deepxiv`](skills/deepxiv/SKILL.md) | Progressive paper retrieval via DeepXiv CLI: search, brief, section map, section reads, trending, web search | Yes (`pip install deepxiv-sdk`) |
+| 🔎 [`exa-search`](skills/exa-search/SKILL.md) | AI-powered broad web search via Exa: blogs, docs, news, companies, research papers with content extraction (highlights, text, summaries) | Yes (`pip install exa-py`) |
+| 📝 [`alphaxiv`](skills/alphaxiv/SKILL.md) | Quick single-paper lookup via [AlphaXiv](https://alphaxiv.org) LLM-optimized summaries. Three-tier fallback: overview → full markdown → LaTeX source | No |
 | 🎨 [`pixel-art`](skills/pixel-art/SKILL.md) | Generate pixel art SVG illustrations for READMEs, docs, or slides | No |
 | 📱 [`feishu-notify`](skills/feishu-notify/SKILL.md) | [Feishu/Lark](#-feishulark-integration-optional) push (webhook) or interactive (bidirectional). Off by default | No |
 
@@ -801,22 +1139,52 @@ Got reviews back? `/rebuttal` parses them, builds a strategy, and drafts a venue
 
 ### Install Skills
 
-> 💡 **New Claude Code versions** may not auto-create `~/.claude/skills/`. If the directory doesn't exist, create it first: `mkdir -p ~/.claude/skills/`. This works alongside the new plugins system — both `skills/` and `plugins/` are loaded by Claude Code.
+> 💡 **Recommended: project-local symlink install** (since v0.4.2). Project isolation prevents ARIS workflows from being interrupted by other community skill packs (Superpowers, etc.). Issue [#118](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep/issues/118).
 
 ```bash
-git clone https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep.git
-cd Auto-claude-code-research-in-sleep
+# 1. Clone ARIS once to a stable location
+git clone https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep.git ~/aris_repo
 
-# Create skills directory if it doesn't exist
-mkdir -p ~/.claude/skills/
+# 2. For each project that uses ARIS, attach via symlink:
+cd ~/your-paper-project
+bash ~/aris_repo/tools/install_aris.sh
+# → auto-detects platform (Claude Code / Codex CLI) from CLAUDE.md or AGENTS.md
+# → creates .claude/skills/aris symlink (or .agents/skills/aris for Codex)
+# → adds a managed block to CLAUDE.md / AGENTS.md telling the agent to use only project-local skills
+# → records install metadata in .aris/skill-source.txt
 
-# Install all skills globally
-cp -r skills/* ~/.claude/skills/
+# 3. To update ARIS for ALL attached projects, just pull the repo once:
+cd ~/aris_repo && git pull
 
-# Or install specific skills
-cp -r skills/auto-review-loop ~/.claude/skills/
-cp -r skills/research-lit ~/.claude/skills/
+# Windows (PowerShell, requires admin or developer mode for junctions):
+.\tools\install_aris.ps1 C:\path\to\your-paper-project
 ```
+
+<details>
+<summary><b>Alternative installs (advanced)</b></summary>
+
+**Project-local copy (for per-project customization):**
+```bash
+# Copy skills into the project (instead of symlink)
+mkdir -p ~/your-project/.claude/skills
+bash ~/aris_repo/tools/smart_update.sh \
+    --project ~/your-project \
+    --target-subdir .claude/skills/aris \
+    --apply
+# Update with: smart_update.sh --project ~/your-project --target-subdir .claude/skills/aris --apply
+```
+
+**Global install (for power users who want ARIS available in every project):**
+```bash
+cp -r ~/aris_repo/skills/* ~/.claude/skills/
+# Update with: bash tools/smart_update.sh --apply
+```
+
+> Global install increases the risk of skill name collisions with other globally-installed packs. Use only if you understand the trade-offs and don't mix ARIS with Superpowers / OpenHands / etc.
+
+</details>
+
+> 💡 **New Claude Code versions** may not auto-create `~/.claude/skills/`. If using global install, create it first: `mkdir -p ~/.claude/skills/`. The symlink installer handles directory creation automatically.
 
 <details>
 <summary><b>Optional: Codex Plugin for Code Review</b></summary>
@@ -851,17 +1219,17 @@ All plugin features are **optional** — if not installed, ARIS falls back to Cl
 cd Auto-claude-code-research-in-sleep
 git pull
 
-# Option A: Full update (overwrites all skills with latest version)
-cp -r skills/* ~/.claude/skills/
+# 🧠 Smart update (recommended) — analyzes what's safe to update
+bash tools/smart_update.sh          # dry-run: shows what would change
+bash tools/smart_update.sh --apply  # apply: adds new + updates safe ones
 
-# Option B: Safe update (only add NEW skills, keep your customizations)
-cp -rn skills/* ~/.claude/skills/
-
-# Option C: Update specific skills only
-cp -r skills/experiment-bridge ~/.claude/skills/
+# Manual options (if you prefer):
+# cp -r skills/* ~/.claude/skills/       # Option A: overwrite all
+# cp -rn skills/* ~/.claude/skills/      # Option B: only add new, keep yours
+# cp -r skills/experiment-bridge ~/.claude/skills/  # Option C: specific skill
 ```
 
-> 💡 **Which option?** Use **A** if you haven't customized any skills. Use **B** if you've modified skills locally (new skills get added, your changes are preserved — but you'll miss upstream bug fixes in modified files). Use **C** to selectively update.
+> 💡 **Smart update** compares your local skills with upstream, detects personal customizations (server paths, API keys, etc.), and only updates skills that are safe to replace. Skills with your personal info are flagged for manual review.
 
 ### Usage
 
@@ -870,6 +1238,8 @@ cp -r skills/experiment-bridge ~/.claude/skills/
 > /idea-discovery "your research direction"          # full pipeline
 > /research-lit "topic"                              # just literature survey (all sources)
 > /research-lit "topic" — sources: zotero, web        # mix and match sources
+> /research-lit "topic" — sources: deepxiv            # DeepXiv-only progressive retrieval
+> /research-lit "topic" — sources: exa                # Exa AI-powered web search with content extraction
 > /research-lit "topic" — arxiv download: true         # also download top arXiv PDFs
 > /arxiv "discrete diffusion" — download               # standalone arXiv search + download
 > /idea-creator "topic"                              # just brainstorm
@@ -1278,7 +1648,7 @@ Now skills will:
 
 Skills are plain Markdown files. Fork and customize:
 
-> 💡 **Parameter pass-through**: Parameters flow down the call chain automatically. For example, `/research-pipeline "topic" — sources: zotero, arxiv download: true` passes `sources` and `arxiv download` through `idea-discovery` all the way down to `research-lit`. You can set any downstream parameter at any level — just add `— key: value` to your command.
+> 💡 **Parameter pass-through**: Parameters flow down the call chain automatically. For example, `/research-pipeline "topic" — sources: zotero, arxiv download: true` passes `sources` and `arxiv download` through `idea-discovery` all the way down to `research-lit`. This also works for optional sources such as `deepxiv` and `exa`: `/research-pipeline "topic" — sources: all, deepxiv, exa`. You can set any downstream parameter at any level — just add `— key: value` to your command.
 >
 > ```
 > research-pipeline  ──→  idea-discovery      ──→  research-lit
@@ -1346,11 +1716,11 @@ Override inline: `/experiment-bridge — base repo: https://github.com/org/proje
 |----------|---------|-------------|
 | `PAPER_LIBRARY` | `papers/`, `literature/` | Local directories to scan for PDFs before searching online |
 | `MAX_LOCAL_PAPERS` | 20 | Max local PDFs to scan (first 3 pages each) |
-| `SOURCES` | `all` | Which sources to search: `zotero`, `obsidian`, `local`, `web`, `semantic-scholar`, or `all`. `semantic-scholar` must be explicitly listed |
+| `SOURCES` | `all` | Which sources to search: `zotero`, `obsidian`, `local`, `web`, `semantic-scholar`, `deepxiv`, `exa`, or `all`. `semantic-scholar`, `deepxiv`, and `exa` must be explicitly listed |
 | `ARXIV_DOWNLOAD` | false | When `true`, download top relevant arXiv PDFs to PAPER_LIBRARY after search |
 | `ARXIV_MAX_DOWNLOAD` | 5 | Maximum number of PDFs to download when `ARXIV_DOWNLOAD = true` |
 
-Override inline: `/research-lit "topic" — sources: zotero, web`, `/research-lit "topic" — arxiv download: true, max download: 10`
+Override inline: `/research-lit "topic" — sources: zotero, web`, `/research-lit "topic" — sources: all, deepxiv`, `/research-lit "topic" — sources: all, exa`, `/research-lit "topic" — arxiv download: true, max download: 10`
 
 ### Paper Writing (`paper-write`)
 
@@ -1512,7 +1882,6 @@ If you use ARIS in your research, please cite:
     author       = {Yang, Ruofeng and Li, Yongcan and Li, Shuai},
     title        = {ARIS: Fully Autonomous Research via Adversarial Multi-Agent Collaboration},
     year         = {2026},
-    doi          = {10.5281/zenodo.19415257},
     url          = {https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep},
 }
 ```

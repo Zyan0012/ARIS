@@ -264,8 +264,8 @@ claude
     └── ...（其余 11 个 skill 类似）
 
 项目目录（运行时生成）/
-├── AUTO_REVIEW.md                       # 审查日志（自动追加）
-└── REVIEW_STATE.json                    # 状态持久化，支持断点恢复
+├── review-stage/AUTO_REVIEW.md                       # 审查日志（自动追加）
+└── review-stage/REVIEW_STATE.json                    # 状态持久化，支持断点恢复
 ```
 
 ---

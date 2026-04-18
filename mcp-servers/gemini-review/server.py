@@ -427,7 +427,8 @@ def run_gemini_cli_review(
         message = parse_error if not stderr else f"{parse_error}. stderr: {stderr}"
         return None, message
 
-    assert payload is not None
+    if payload is None:
+        return None, "Failed to parse Gemini CLI output"
     if result.returncode != 0:
         return None, f"Gemini review failed: {extract_cli_error_message(result.stdout, result.stderr)}"
 
@@ -577,7 +578,8 @@ def run_gemini_review(
     if error:
         return None, error
 
-    assert payload is not None
+    if payload is None:
+        return None, "Failed to parse Gemini CLI output"
     updated_history = list(history)
     updated_history.append({"role": "user", "text": prompt})
     updated_history.append({"role": "model", "text": str(payload["response"])})

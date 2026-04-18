@@ -88,6 +88,30 @@ Extract structured fields from Codex response:
 - confidence: high | medium | low
 ```
 
+### Step 3.5: Check Experiment Integrity (if audit exists)
+
+**Skip this step if `EXPERIMENT_AUDIT.json` does not exist.**
+
+```
+if EXPERIMENT_AUDIT.json exists:
+    read integrity_status from file
+    attach to verdict output:
+        integrity_status: pass | warn | fail
+
+    if integrity_status == "fail":
+        append to verdict: "[INTEGRITY CONCERN] — audit found issues, see EXPERIMENT_AUDIT.md"
+        downgrade confidence to "low" regardless of Codex judgment
+
+    if integrity_status == "warn":
+        append to verdict: "[INTEGRITY: WARN] — audit flagged potential issues"
+else:
+    integrity_status = "unavailable"
+    verdict is labeled "provisional — no integrity audit run"
+    (this does NOT block anything — pipeline continues normally)
+```
+
+See `shared-references/experiment-integrity.md` for the full integrity protocol.
+
 ### Step 4: Route Based on Verdict
 
 #### `no` — Claim not supported
@@ -112,6 +136,46 @@ Extract structured fields from Codex response:
 2. If ablation studies are incomplete → trigger `/ablation-planner`
 3. If all evidence is in → ready for paper writing
 
+### Step 5: Update Research Wiki (if active)
+
+**Skip this step entirely if `research-wiki/` does not exist.**
+
+```
+if research-wiki/ exists:
+    # 1. Create experiment page
+    Create research-wiki/experiments/<exp_id>.md with:
+      - node_id: exp:<id>
+      - idea_id: idea:<active_idea>
+      - date, hardware, duration, metrics
+      - verdict, confidence, reasoning summary
+
+    # 2. Update claim status
+    for each claim resolved by this verdict:
+        if verdict == "yes":
+            Update claim page: status → supported
+            python3 tools/research_wiki.py add_edge research-wiki/ --from "exp:<id>" --to "claim:<cid>" --type supports --evidence "<metric>"
+        elif verdict == "partial":
+            Update claim page: status → partial
+            python3 tools/research_wiki.py add_edge research-wiki/ --from "exp:<id>" --to "claim:<cid>" --type supports --evidence "partial"
+        else:
+            Update claim page: status → invalidated
+            python3 tools/research_wiki.py add_edge research-wiki/ --from "exp:<id>" --to "claim:<cid>" --type invalidates --evidence "<why>"
+
+    # 3. Update idea outcome
+    Update research-wiki/ideas/<idea_id>.md:
+      - outcome: positive | mixed | negative
+      - If negative: fill "Failure / Risk Notes" and "Lessons Learned"
+      - If positive: fill "Actual Outcome" and "Reusable Components"
+
+    # 4. Rebuild + log
+    python3 tools/research_wiki.py rebuild_query_pack research-wiki/
+    python3 tools/research_wiki.py log research-wiki/ "result-to-claim: exp:<id> verdict=<verdict> for idea:<idea_id>"
+
+    # 5. Re-ideation suggestion
+    Count failed/partial ideas since last /idea-creator run.
+    If >= 3: print "💡 3+ ideas tested since last ideation. Consider re-running /idea-creator — the wiki now knows what doesn't work."
+```
+
 ## Rules
 
 - **Codex is the judge, not CC.** CC collects evidence and routes; Codex evaluates. This prevents post-hoc rationalization.
@@ -120,3 +184,7 @@ Extract structured fields from Codex response:
 - If `confidence` is low, treat the judgment as inconclusive and add experiments rather than committing to a claim.
 - If Codex MCP is unavailable (call fails), CC makes its own judgment and marks it `[pending Codex review]` — do not block the pipeline.
 - Always record the verdict and reasoning in findings.md, regardless of outcome.
+
+## Review Tracing
+
+After each `mcp__codex__codex` or `mcp__codex__codex-reply` reviewer call, save the trace following `shared-references/review-tracing.md`. Use `tools/save_trace.sh` or write files directly to `.aris/traces/<skill>/<date>_run<NN>/`. Respect the `--- trace:` parameter (default: `full`).

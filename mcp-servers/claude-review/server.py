@@ -240,7 +240,8 @@ def run_claude_review(
         message = parse_error if not stderr else f"{parse_error}. stderr: {stderr}"
         return None, message
 
-    assert payload is not None
+    if payload is None:
+        return None, "Failed to parse Claude CLI output"
     if result.returncode != 0 or payload.get("is_error"):
         message = str(payload.get("result") or payload.get("error") or result.stderr.strip() or "Claude review failed")
         return None, message

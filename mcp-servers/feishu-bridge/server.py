@@ -9,7 +9,7 @@ Endpoints:
   GET  /health  — health check
 
 Requires:
-  pip install lark-oapi httpx
+  pip install lark-oapi
 
 Environment variables:
   FEISHU_APP_ID      — Feishu app ID
