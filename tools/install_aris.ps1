@@ -4,9 +4,35 @@
     Project-local ARIS skill installation via junction (Windows symlink equivalent).
 
 .DESCRIPTION
+    [DEPRECATED behavior — see warning below]
     Recommended over global install for projects that mix ARIS with other skill packs.
     Creates a junction in <project>/.claude/skills/aris (or .agents/skills/aris) pointing
     to the cloned ARIS repository's skills directory.
+
+.NOTES
+    ⚠️  KNOWN BUG: this script creates a NESTED junction at .claude/skills/aris/, which
+    Claude Code's slash-command discovery does NOT find (CC only scans one directory level).
+    The Bash version (install_aris.sh) was rewritten in v0.4.4 to use flat per-skill
+    symlinks + a manifest-tracked re-runnable installer. PowerShell parity is pending.
+
+    Recommended for Windows users:
+      Option A (best):    Use WSL2 with the Bash installer:
+                            wsl bash ~/aris_repo/tools/install_aris.sh
+      Option B (manual):  Create flat junctions yourself, one per skill:
+                            $repo = "C:\path\to\aris_repo"
+                            $proj = "C:\path\to\your-project"
+                            New-Item -ItemType Directory -Force "$proj\.claude\skills" | Out-Null
+                            Get-ChildItem "$repo\skills" -Directory |
+                              Where-Object { $_.Name -ne 'skills-codex' -and (Test-Path "$($_.FullName)\SKILL.md") } |
+                              ForEach-Object {
+                                $link = "$proj\.claude\skills\$($_.Name)"
+                                if (-not (Test-Path $link)) {
+                                  New-Item -ItemType Junction -Path $link -Target $_.FullName | Out-Null
+                                }
+                              }
+      Option C (legacy):  Continue with this script — but Claude Code's slash-command
+                          autocomplete will NOT see your skills (you'd have to invoke
+                          them via /skills <name> or copy them out manually).
 
 .PARAMETER ProjectPath
     Path to the project root. Defaults to current directory.

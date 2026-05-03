@@ -115,19 +115,44 @@ case "$MODE" in
         ;;
 esac
 
-# ─── Refuse to operate on symlinked installs (those use git pull, not smart_update) ──
+# ─── Deprecate nested --target-subdir (.claude/skills/aris, .agents/skills/aris) ──
+# Nested install hides skills from Claude Code's slash-command discovery (it scans
+# only one level deep). The replacement is the flat install via install_aris.sh.
+if [[ "$TARGET_SUBDIR" == ".claude/skills/aris" || "$TARGET_SUBDIR" == ".agents/skills/aris" ]]; then
+    REPO_ROOT_FOR_HINT="$(cd "$(dirname "$0")/.." && pwd)"
+    echo "" >&2
+    echo -e "\033[1;33m⚠️  --target-subdir $TARGET_SUBDIR is DEPRECATED\033[0m" >&2
+    echo "" >&2
+    echo "  Reason: the nested 'aris/' subdirectory hides skills from Claude Code's" >&2
+    echo "          slash-command discovery (which only scans .claude/skills/ one level deep)." >&2
+    echo "" >&2
+    echo "  Switch to the flat install (auto-reconciles new/removed skills on re-run):" >&2
+    echo "    bash $REPO_ROOT_FOR_HINT/tools/install_aris.sh \"${PROJECT_PATH:-<project>}\"" >&2
+    echo "" >&2
+    echo "  To migrate an existing nested install:" >&2
+    echo "    bash $REPO_ROOT_FOR_HINT/tools/install_aris.sh \"${PROJECT_PATH:-<project>}\" --from-old" >&2
+    echo "    (for COPY-style installs, also pass --migrate-copy keep-user|prefer-upstream)" >&2
+    echo "" >&2
+    if $APPLY; then
+        echo -e "\033[0;31mRefusing to --apply with deprecated nested target. Use install_aris.sh instead.\033[0m" >&2
+        exit 2
+    fi
+    echo "(continuing dry-run analysis for backward compatibility — no changes will be made)" >&2
+    echo "" >&2
+fi
+
+# ─── Refuse to operate on symlinked installs (those use install_aris.sh, not smart_update) ──
 if [[ -L "$LOCAL_DIR" ]]; then
     LINK_TARGET="$(readlink "$LOCAL_DIR")"
+    REPO_ROOT_FOR_HINT="$(cd "$(dirname "$0")/.." && pwd)"
     echo "" >&2
     echo -e "\033[0;31m✗ Local skill directory is a symlink: $LOCAL_DIR\033[0m" >&2
     echo "  → $LINK_TARGET" >&2
     echo "" >&2
-    echo "smart_update is for COPIED installs. Symlinked installs are updated by:" >&2
-    echo "  cd <aris-repo> && git pull" >&2
+    echo "smart_update is for COPIED installs. Symlinked installs are managed by install_aris.sh:" >&2
+    echo "  cd <aris-repo> && git pull           # updates content of existing skills" >&2
+    echo "  bash $REPO_ROOT_FOR_HINT/tools/install_aris.sh <project>   # reconciles new/removed skills" >&2
     echo "" >&2
-    echo "If you need per-project customization, switch to a copied install:" >&2
-    echo "  rm $LOCAL_DIR" >&2
-    echo "  bash tools/smart_update.sh --project <project> --target-subdir $TARGET_SUBDIR --apply" >&2
     exit 2
 fi
 
@@ -324,7 +349,7 @@ echo ""
 if $APPLY; then
     echo -e "${BLUE}Applying safe updates...${NC}"
 
-    # Add new skills
+    # Add new skills (no existing dir to clean)
     for s in "${NEW_SKILLS[@]:-}"; do
         if [[ -n "$s" ]]; then
             cp -r "$UPSTREAM_DIR/$s" "$LOCAL_DIR/"
@@ -332,16 +357,19 @@ if $APPLY; then
         fi
     done
 
-    # Replace safely updated skills
+    # Replace safely updated skills (rm-then-copy to avoid stale-file bug:
+    # plain `cp -r` overlays and leaves files that upstream removed)
     for s in "${SAFE_SKILLS[@]:-}"; do
         if [[ -n "$s" ]]; then
+            rm -rf "$LOCAL_DIR/$s"
             cp -r "$UPSTREAM_DIR/$s" "$LOCAL_DIR/"
             echo -e "  ${BLUE}↑ Updated: $s${NC}"
         fi
     done
 
-    # Update shared-references
+    # Update shared-references (same fix)
     if [[ -d "$UPSTREAM_DIR/shared-references" ]]; then
+        rm -rf "$LOCAL_DIR/shared-references"
         cp -r "$UPSTREAM_DIR/shared-references" "$LOCAL_DIR/"
         echo -e "  ${BLUE}↑ Updated: shared-references${NC}"
     fi

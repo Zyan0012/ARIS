@@ -9,11 +9,15 @@ Scheduler and manifest builder for `/experiment-queue` skill.
 
 ## Install on Remote
 
-The skill auto-installs these on the SSH host under `~/.aris_queue/`:
+The `/experiment-queue` skill auto-installs these on the SSH host under `~/.aris_queue/` per invocation (idempotent). The skill resolves the local helpers via a fallback chain (`.aris/tools/experiment_queue/` → `tools/experiment_queue/` → `$ARIS_REPO/tools/experiment_queue/`) so it works from any project layout.
+
+For manual install (run from anywhere; `$ARIS_REPO` points at the cloned ARIS repo root):
 
 ```bash
 ssh <server> 'mkdir -p ~/.aris_queue'
-scp queue_manager.py build_manifest.py <server>:~/.aris_queue/
+scp "$ARIS_REPO/tools/experiment_queue/queue_manager.py" \
+    "$ARIS_REPO/tools/experiment_queue/build_manifest.py" \
+    <server>:~/.aris_queue/
 ```
 
 ## Example
@@ -53,18 +57,29 @@ python3 build_manifest.py --config grid_spec.yaml --output manifest.json
 
 ### 3. Launch scheduler
 
+Use a per-run directory under `~/.aris_queue/runs/` so concurrent queues don't collide and crash-resume is reproducible. Note that `scp` runs in SFTP mode in modern OpenSSH and does NOT reliably expand `$HOME` in destination paths — use remote-relative paths for `scp` destinations and `$HOME`-prefixed paths only inside `ssh` command strings (where remote bash expands them):
+
 ```bash
-ssh <server> 'nohup python3 ~/.aris_queue/queue_manager.py \
-    --manifest /tmp/manifest.json \
-    --state /tmp/queue_state.json \
-    --log-dir /home/rfyang/rfyang_code/dllm_experiments_torch \
-    > /tmp/queue_mgr.log 2>&1 &'
+RUN_TS=$(date -u +%Y%m%dT%H%M%SZ)
+REMOTE_RUN_REL=".aris_queue/runs/$RUN_TS"          # for scp (relative to remote home)
+REMOTE_RUN_DIR="\$HOME/$REMOTE_RUN_REL"            # for ssh commands (expanded remotely)
+
+ssh <server> "mkdir -p \"$REMOTE_RUN_DIR/logs\" \"\$HOME/.aris_queue\""
+scp manifest.json <server>:"$REMOTE_RUN_REL/manifest.json"
+
+ssh <server> "nohup python3 \"\$HOME/.aris_queue/queue_manager.py\" \\
+    --manifest \"$REMOTE_RUN_DIR/manifest.json\" \\
+    --state    \"$REMOTE_RUN_DIR/queue_state.json\" \\
+    --log-dir  \"$REMOTE_RUN_DIR/logs\" \\
+    > \"$REMOTE_RUN_DIR/queue_mgr.log\" 2>&1 &"
 ```
+
+> Note: `--log-dir` is the per-job log directory the scheduler reads for OOM detection. The flag `--log` is declared by argparse but unused; do not pass it.
 
 ### 4. Monitor
 
 ```bash
-ssh <server> 'jq ".jobs | group_by(.status) | map({(.[0].status): length}) | add" /tmp/queue_state.json'
+ssh <server> "jq '.jobs | group_by(.status) | map({(.[0].status): length}) | add' \"$REMOTE_RUN_DIR/queue_state.json\""
 ```
 
 Returns:

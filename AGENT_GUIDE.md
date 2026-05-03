@@ -64,6 +64,9 @@ Parameters pass through workflow chains automatically.
 | `/research-review "draft"` | External review | GPT-5.4 xhigh deep critique |
 | `/experiment-audit` | Integrity check | Cross-model audit of eval code |
 | `/result-to-claim` | Verdict judgment | Codex judges if claims are supported |
+| `/paper-claim-audit "paper/"` | Numerical claim audit | Zero-context fresh reviewer cross-checks paper numbers vs raw evidence |
+| `/citation-audit "paper/"` | Bibliography audit | Cross-family reviewer verifies existence + metadata + context for every \cite |
+| `/overleaf-sync setup\|pull\|push\|status` | Overleaf bridge | Two-way sync via Overleaf Git bridge; token stays in OS keychain, never in chat |
 | `/paper-plan "topic"` | Outline creation | Structured outline + claims matrix |
 | `/paper-figure "plan"` | Figure generation | Plots from experiment data |
 | `/paper-write "plan"` | LaTeX drafting | Section-by-section with citation check |
@@ -87,6 +90,8 @@ Skills communicate through plain-text files:
 | `paper/main.pdf` | paper-compile | auto-paper-improvement-loop |
 | `EXPERIMENT_AUDIT.md` | experiment-audit | result-to-claim |
 | `EXPERIMENT_AUDIT.json` | experiment-audit | result-to-claim (machine-readable) |
+| `PAPER_CLAIM_AUDIT.md/.json` | paper-claim-audit | paper-writing Phase 5.5 gate |
+| `CITATION_AUDIT.md/.json` | citation-audit | paper-writing Phase 5.8 submission gate |
 | `research-wiki/` | research-wiki | idea-creator, research-lit, result-to-claim |
 | `.aris/meta/events.jsonl` | hooks (passive) | meta-optimize |
 

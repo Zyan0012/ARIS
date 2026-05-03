@@ -52,14 +52,19 @@ Valid values:
 - `local`
 - `semantic`
 - `semantic-scholar`
+- `deepxiv`
+- `exa`
+- `gemini`
+- `openalex`
 - `web`
 - `all`
 
 If no directive is provided, use `all`.
 
 Interpretation:
-- `all` means search Zotero, Obsidian, local PDFs, local Semantic Scholar skill, arXiv, and web.
-- `semantic-scholar` is an additional explicit source for the repo's `semantic_scholar_fetch.py`, mainly to cover published venue-only papers beyond arXiv.
+- `all` means search the default sources: Zotero, Obsidian, local PDFs, local Semantic Scholar skill, arXiv, and web.
+- `semantic-scholar`, `deepxiv`, `exa`, `gemini`, and `openalex` are opt-in expansion sources. Add them explicitly, for example `sources: all, gemini`.
+- `semantic` means the local Semantic Scholar skill/script, while `semantic-scholar` means the repo's `semantic_scholar_fetch.py` API path for venue-only papers beyond arXiv.
 
 Examples:
 
@@ -69,6 +74,14 @@ Examples:
 /research-lit "offline RL - sources: local, semantic"
 /research-lit "multimodal misinformation - sources: web, semantic-scholar"
 /research-lit "representation learning - sources: all, semantic-scholar"
+/research-lit "topic" - sources: deepxiv
+/research-lit "topic" - sources: all, deepxiv
+/research-lit "topic" - sources: exa
+/research-lit "topic" - sources: all, exa
+/research-lit "topic" - sources: gemini
+/research-lit "topic" - sources: all, gemini
+/research-lit "topic" - sources: openalex
+/research-lit "topic" - sources: semantic-scholar, openalex
 ```
 
 ## Source Priority
@@ -82,6 +95,10 @@ Examples:
 | 5 | arXiv API | implicit | `arxiv_fetch.py` exists | Structured preprint search and optional PDF download |
 | 6 | Web search | `web` | Always available | arXiv, project pages, Google Scholar snippets, venue pages |
 | 7 | Semantic Scholar API | `semantic-scholar` | `tools/semantic_scholar_fetch.py` exists | Published venue papers with citation counts, venue metadata, and TLDR; runs only when explicitly requested |
+| 8 | DeepXiv CLI | `deepxiv` | `tools/deepxiv_fetch.py` and installed `deepxiv` CLI | Progressive paper retrieval: search, brief, head, section, trending, web search; runs only when explicitly requested |
+| 9 | Exa Search | `exa` | `tools/exa_search.py` and installed `exa-py` SDK | AI-powered broad web search with content extraction; runs only when explicitly requested |
+| 10 | Gemini (MCP / CLI) | `gemini` | `mcp__gemini-cli__ask-gemini` tool available, or `gemini` CLI installed | AI-powered broad literature discovery; runs only when explicitly requested |
+| 11 | OpenAlex | `openalex` | `tools/openalex_fetch.py` exists | Open citation graph with institutional affiliations, funding data, and broad metadata; runs only when explicitly requested |
 
 Each source is optional. Skip missing sources silently and continue.
 
@@ -247,6 +264,144 @@ Use WebSearch and WebFetch to cover:
 
 Do not rely on generic web search alone if the local Semantic Scholar skill is available.
 
+#### Step 1e: DeepXiv Search
+
+```bash
+python3 tools/deepxiv_fetch.py search "QUERY" --max 10
+```
+
+Then deepen only for the most relevant papers:
+
+```bash
+python3 tools/deepxiv_fetch.py paper-brief ARXIV_ID
+python3 tools/deepxiv_fetch.py paper-head ARXIV_ID
+python3 tools/deepxiv_fetch.py paper-section ARXIV_ID "Experiments"
+```
+
+If `tools/deepxiv_fetch.py` or the `deepxiv` CLI is unavailable, skip this source gracefully and continue with the remaining requested sources.
+
+**Why use DeepXiv?** It is useful when a broad search should be followed by staged reading rather than immediate full-paper loading. This reduces unnecessary context while still surfacing structure, TLDRs, and the most relevant sections.
+
+**De-duplication against arXiv and S2**:
+- Match by arXiv ID first, DOI second, normalized title third
+- If DeepXiv and arXiv refer to the same preprint, keep one canonical paper row and record `deepxiv` as an additional source
+- If DeepXiv overlaps with S2 on a published paper, prefer S2 venue/citation metadata in the final table, but keep DeepXiv-derived section notes when they add value
+
+**Exa search** (only when `exa` is in sources):
+
+When the user explicitly requests `— sources: exa` (or includes `exa` in a combined source list), use the Exa tool for broad AI-powered web search with content extraction:
+
+```bash
+EXA_SCRIPT=$(find tools/ -name "exa_search.py" 2>/dev/null | head -1)
+
+# Search for research papers with highlights
+python3 "$EXA_SCRIPT" search "QUERY" --max 10 --category "research paper" --content highlights
+
+# Search for broader web content (blogs, docs, news)
+python3 "$EXA_SCRIPT" search "QUERY" --max 10 --content highlights
+```
+
+If `tools/exa_search.py` or the `exa-py` SDK is unavailable, skip this source gracefully and continue with the remaining requested sources.
+
+**Why use Exa?** Exa provides AI-powered search across the broader web (blogs, documentation, news, company pages) with built-in content extraction. It fills a gap between academic databases (arXiv, S2) and generic WebSearch by returning richer content with each result.
+
+**De-duplication against arXiv, S2, and DeepXiv**:
+- Match by URL first, then normalized title
+- If Exa returns an arXiv paper already found by arXiv/S2, prefer the structured metadata from those sources
+- Exa results from non-academic domains (blogs, docs, news) are unique value not covered by other sources
+
+**Gemini search** (only when `gemini` is in sources):
+
+When the user explicitly requests `— sources: gemini` (or includes `gemini` in a combined source list), use Gemini for AI-powered broad literature discovery.
+
+**Priority 1 — Gemini MCP** (preferred): Call `mcp__gemini-cli__ask-gemini` with the search prompt:
+
+```
+mcp__gemini-cli__ask-gemini({
+  prompt: 'You are a research literature scout. Search comprehensively for papers on: "QUERY"
+
+IMPORTANT CONSTRAINTS:
+1. Search from MULTIPLE angles — decompose the topic into sub-problems, aliases, neighboring tasks, and common benchmark/settings variants.
+2. Prefer papers that are genuinely relevant, not merely keyword-adjacent.
+3. Include top venues, journals, surveys, recent preprints, and papers with code when available.
+4. Focus on papers from 2022 onward unless older foundational work is necessary.
+
+For EACH paper found, provide ALL of the following:
+- Title: [exact title]
+- Authors: [full author list]
+- Year: [publication year]
+- Venue: [exact conference/journal name + year, or "arXiv preprint"]
+- arXiv ID: [format 2401.12345, or "N/A"]
+- DOI: [if available, or "N/A"]
+- Code URL: [GitHub/GitLab link if available, or "No code"]
+- Summary: [one-sentence core contribution]
+
+Find at least 15 papers.',
+  model: 'gemini-2.5-pro'
+})
+```
+
+**Priority 2 — Gemini CLI fallback** (if MCP unavailable): Use `gemini -p "...same prompt..." 2>/dev/null` via Bash (timeout: 120s).
+
+If both MCP and CLI are unavailable, skip this source gracefully and continue with the remaining requested sources.
+
+**Why use Gemini?** Gemini provides AI-driven discovery that goes beyond keyword matching — it decomposes topics, explores naming variants, and surfaces papers that traditional API-based searches (arXiv, S2) may miss. It fills a different retrieval niche from structured database queries.
+
+**De-duplication against arXiv, S2, DeepXiv, and Exa**:
+- Match by arXiv ID first, DOI second, normalized title third
+- If Gemini returns a paper already found by S2, prefer S2's citation count and venue metadata
+- If Gemini returns a paper already found by arXiv, prefer arXiv's structured metadata
+- Gemini's unique value is discovering papers that other keyword-based indexes did not surface
+- **Do not use Gemini-reported citation counts** — they may be inaccurate. Use S2 for authoritative citation data.
+
+**OpenAlex search** (only when `openalex` is in sources):
+
+When the user explicitly requests `— sources: openalex` (or includes `openalex` in a combined source list), use OpenAlex API for comprehensive academic metadata:
+
+```bash
+OA_SCRIPT=$(find tools/ -name "openalex_fetch.py" 2>/dev/null | head -1)
+
+# Preflight: skip OpenAlex silently if either openalex_fetch.py or the
+# `requests` Python package is unavailable. Both checks must pass before
+# the script is invoked, so users without `requests` installed never see
+# a stack trace from a default `/research-lit` run.
+if [ -z "$OA_SCRIPT" ] || ! python3 -c "import requests" >/dev/null 2>&1; then
+  echo "OpenAlex source not available (missing tools/openalex_fetch.py or 'requests' module); skipping." >&2
+else
+  # Search for papers with comprehensive metadata
+  python3 "$OA_SCRIPT" search "QUERY" --max 10 \
+    --year "2022-" \
+    --type article \
+    --sort relevance
+fi
+```
+
+If `openalex_fetch.py` is not found or `requests` module is missing, skip this source gracefully and continue with the remaining requested sources.
+
+**Why use OpenAlex?** Fully open citation graph (no API key required), institutional affiliations, funding data (NSF, NIH), comprehensive topic/keyword metadata, and coverage across all disciplines (not just CS).
+
+**De-duplication against arXiv, S2, DeepXiv, Exa, and Gemini**:
+- Match by DOI first (OpenAlex has DOI for most works), then arXiv ID, then normalized title
+- If OpenAlex and S2 both have the same paper:
+  - Prefer S2 for citation counts (more up-to-date)
+  - Prefer S2 for venue metadata (more accurate for CS/AI papers)
+  - Use OpenAlex for institutional affiliations and funding data (unique value)
+  - Merge both into a richer record
+- If OpenAlex and arXiv overlap, prefer arXiv's PDF link and metadata, but keep OpenAlex's citation/institution data
+- OpenAlex's unique value: institutional affiliations, funding sources, comprehensive topic classification, and cross-discipline coverage
+
+**Optional PDF download** (only when `ARXIV_DOWNLOAD = true`):
+
+After all sources are searched and papers are ranked by relevance:
+```bash
+# Download top N most relevant arXiv papers
+python3 "$SCRIPT" download ARXIV_ID --dir papers/
+```
+- Only download papers ranked in the top ARXIV_MAX_DOWNLOAD by relevance
+- Skip papers already in the local library
+- 1-second delay between downloads (rate limiting)
+- Verify each PDF > 10 KB
+
 ### Step 2: Analyze Each Paper
 
 For each relevant paper, extract:
@@ -292,6 +447,47 @@ Optionally:
 - save downloaded PDFs into `papers/` or `literature/`
 - write notes into project memory
 - create or update an Obsidian literature note when available
+
+### Step 6: Update Research Wiki
+
+**Required when `research-wiki/` exists.** Skip entirely (no action, no
+error) if the directory is absent. Per
+[`shared-references/integration-contract.md`](../shared-references/integration-contract.md),
+this step follows the canonical ingest contract — business logic lives
+in `tools/research_wiki.py`, not in this prose.
+
+```
+📋 Research Wiki ingest (runs once, at end of research-lit):
+   [ ] 1. Predicate: `research-wiki/` exists? If no, skip this step.
+   [ ] 2. For each of the top 8–12 relevant papers (arxiv IDs collected above):
+          python3 tools/research_wiki.py ingest_paper research-wiki/ \
+              --arxiv-id <id> [--thesis "<one-line>"] [--tags <t1>,<t2>]
+   [ ] 3. For each explicit relationship to an existing wiki entity,
+          add an edge:
+          python3 tools/research_wiki.py add_edge research-wiki/ \
+              --from "paper:<slug>" --to "<target_node_id>" \
+              --type <extends|contradicts|addresses_gap|inspired_by|...> \
+              --evidence "<one-sentence quote or reasoning>"
+   [ ] 4. Confirm papers/<slug>.md files were created (helper prints
+          "Paper ingested: ..."); if any failed with a network error,
+          retry or fall back to the --title/--authors/--year manual form.
+```
+
+`ingest_paper` handles slug generation, arXiv metadata fetch, dedup
+(skips an existing paper by arXiv id), page rendering, `index.md`
+rebuild, `query_pack.md` rebuild, and log append in a single call —
+**do not manually write `papers/<slug>.md`**. If the helper is
+unavailable (e.g., offline on a non-ARIS machine), log the gap and let
+`/research-wiki sync --arxiv-ids …` backfill later.
+
+For non-arXiv sources (Semantic Scholar only, IEEE/ACM journals without
+arXiv mirrors, blog posts), pass manual metadata instead:
+
+```
+python3 tools/research_wiki.py ingest_paper research-wiki/ \
+    --title "<full title>" --authors "A, B, C" --year <yyyy> \
+    --venue "<venue>" [--external-id-doi "<doi>"] [--thesis "..."]
+```
 
 ## Key Rules
 

@@ -9,8 +9,11 @@ Usage (on remote):
     nohup python3 queue_manager.py \\
         --manifest manifest.json \\
         --state queue_state.json \\
-        --log queue.log \\
+        --log-dir ./logs \\
         > queue_mgr.log 2>&1 &
+
+(Pass --log-dir, NOT --log: --log is declared but unused; per-job log
+files in --log-dir drive OOM detection and stale-screen cleanup.)
 
 The manifest.json is either produced manually or by `build_manifest.py`.
 

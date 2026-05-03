@@ -68,6 +68,24 @@ if ($PSCmdlet.ParameterSetName -eq 'Project') {
     $LocalDir = Join-Path $ProjectRoot $TargetSubdirNormalized
     $Scope = "Project: $ProjectRoot (subdir: $TargetSubdir)"
 
+    # ─── Deprecate nested -TargetSubdir (.claude/skills/aris, .agents/skills/aris) ──
+    if ($TargetSubdir -in @('.claude/skills/aris', '.agents/skills/aris')) {
+        Write-Host ""
+        Write-Host "⚠️  -TargetSubdir $TargetSubdir is DEPRECATED" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "  Reason: nested 'aris/' subdirectory hides skills from Claude Code's slash-command discovery" -ForegroundColor Yellow
+        Write-Host "          (CC only scans .claude/skills/ one level deep)." -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "  Switch to the flat install (use the bash version via WSL, or manual junctions —" -ForegroundColor Yellow
+        Write-Host "  see install_aris.ps1 docstring for the manual one-liner)." -ForegroundColor Yellow
+        Write-Host ""
+        if ($Apply) {
+            Write-Host "Refusing to -Apply with deprecated nested target." -ForegroundColor Red
+            exit 2
+        }
+        Write-Host "(continuing dry-run analysis for backward compatibility — no changes will be made)" -ForegroundColor Yellow
+    }
+
     # Platform marker auto-detect: warn on mismatch
     $hasClaudeMarkers = (Test-Path (Join-Path $ProjectRoot 'CLAUDE.md')) -or `
                        (Test-Path (Join-Path $ProjectRoot '.claude\skills')) -or `
