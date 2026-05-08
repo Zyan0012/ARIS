@@ -1,7 +1,7 @@
 ---
 name: paper-slides
 description: "Generate conference presentation slides (beamer LaTeX → PDF + editable PPTX) from a compiled paper, with speaker notes and full talk script. Use when user says \"做PPT\", \"做幻灯片\", \"make slides\", \"conference talk\", \"presentation slides\", \"生成slides\", \"写演讲稿\", or wants beamer slides for a conference talk."
-argument-hint: [paper-directory-or-talk-length]
+argument-hint: "[paper-directory-or-talk-length] [— style-ref: <source>]"
 allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob, Agent, mcp__codex__codex, mcp__codex__codex-reply
 ---
 
@@ -30,6 +30,34 @@ Unlike posters (single page, visual-first), slides tell a **temporal story**: ea
 - **ENGINE = `pdflatex`** — LaTeX engine. Use `xelatex` for CJK text.
 
 > 💡 Override: `/paper-slides "paper/" — talk_type: oral, venue: ICML, minutes: 20, aspect: 4:3`
+
+## Optional: Style reference (`— style-ref: <source>`, opt-in)
+
+Lets the user steer the talk's **structural** rhythm (story beats, theorem density, figure density inherited from the source paper) toward a reference paper. **Default OFF — when the user does not pass `— style-ref`, do nothing differently from before.**
+
+Only when `— style-ref: <source>` appears in `$ARGUMENTS`, run the helper FIRST:
+
+```bash
+if [ ! -f tools/extract_paper_style.py ]; then
+  echo "error: tools/extract_paper_style.py not found — re-run 'bash tools/install_aris.sh' to refresh the '.aris/tools' symlink (added in #174), or copy the helper manually from the ARIS repo" >&2
+  exit 1
+fi
+CACHE=$(python3 tools/extract_paper_style.py --source "<source>")
+case $? in
+  0) ;;                                       # use $CACHE/style_profile.md as structural guidance
+  2) echo "warning: style-ref skipped (missing optional dep)" >&2 ;;
+  3) echo "error: --style-ref source failed; aborting slides" >&2 ; exit 1 ;;
+  *) echo "error: helper failed unexpectedly; aborting slides" >&2 ; exit 1 ;;
+esac
+```
+
+Sources accepted: local TeX dir / file, local PDF, arXiv id, http(s) URL. Overleaf URLs/IDs are rejected — clone via `/overleaf-sync setup <id>` first and pass the local clone path.
+
+**Strict rules** (full contract in `tools/extract_paper_style.py` docstring):
+
+- Use `style_profile.md` to align section-budget tendency and theorem-environment density. Talk-type slide count above still takes precedence.
+- **Never copy speaker-note prose, slide titles, or examples** from anything reachable through the cache. The talk content is from the user's paper, not the reference.
+- **Never pass `— style-ref` (or the cache contents) to the GPT-5.4 reviewer sub-agent** — the reviewer must judge the talk's clarity on its own merits.
 
 ## Talk Type → Slide Count
 
@@ -538,6 +566,26 @@ Next steps:
 ```
 
 **State**: Write `SLIDES_STATE.json` with `phase: 8, status: "completed"`.
+
+## Recommended Follow-up: `/slides-polish`
+
+After this skill produces the initial Beamer + PPTX, the typical drift is
+**typography proportion + per-slide layout**, not content. Run
+`/slides-polish` as a focused post-generation polish phase: it does
+per-page Codex review against a reference visual (e.g., a prior academic
+talk), bumps PPTX fonts to projector-readable sizes, fixes text-frame
+overflow, and applies a fix-pattern catalog (italic style leaks, em-dash
+spacing, image aspect ratio, Chinese-font hints, anonymity placeholders).
+
+`/slides-polish` is read-only on content (no claim / number / citation
+edits) and preserves speaker notes verbatim. Invocation:
+
+```
+/slides-polish slides/ — reference: <ref-pdf> [— style: generic | why-rf | <venue>]
+```
+
+Skip it for short decks (< 5 slides) or when a complete redesign is
+needed (re-run `/paper-slides` instead).
 
 ## Key Rules
 

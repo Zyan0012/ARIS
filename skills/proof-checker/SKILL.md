@@ -393,7 +393,7 @@ After fixes, re-run:
 
 This phase catches a specific class of bugs that Phase 3.5's "Statement-conclusion match" check does NOT catch: **drift between the canonical theorem statement and its restatements elsewhere in the paper** (summary tables, "Key Contributions" / "Summary" sections, abstract, discussion, captions). Common drift patterns observed in practice:
 
-- Main theorem says "width-1 unconditional, width-w conditional" but a later summary cites it as "unconditional DSM excess-risk oracle bound".
+- Main theorem makes a partly-conditional claim (e.g., "regime A unconditional, regime B conditional on assumption X") but a later summary cites it as the fully unconditional version.
 - Main theorem κ exponent is `O(d²K²)` but a constants table writes `O(K²)`.
 - Main theorem regime condition is squared envelope, but a remark elsewhere still shows the first-order envelope.
 - Restatement quietly drops a quantifier ("for $n \ge n_0$") that the proof relied on.
@@ -639,7 +639,7 @@ Field semantics:
   ...
   "restatement_drift": [
     {
-      "label": "thm:dsm-oracle",
+      "label": "thm:main",
       "canonical_location": "sections/2.setup.tex:117",
       "restatement_location": "sections/appendix.tex:1614",
       "drift_type": "conditional_loss" | "scope_change" | "quantifier_loss" |
