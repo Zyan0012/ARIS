@@ -23,6 +23,17 @@ Autonomously iterate: review → implement fixes → re-review, until the extern
 
 > 💡 Override: `/auto-review-loop "topic" — compact: true, human checkpoint: true, difficulty: hard`
 
+## Reviewer Routing
+
+Before Phase A, parse `$ARGUMENTS` for `--reviewer: oracle-pro` or `reviewer: oracle-pro`.
+
+- Default: use the Codex reviewer route (`spawn_agent` / `send_input`) with `reasoning_effort: xhigh`.
+- Oracle override: follow `../shared-references/reviewer-routing.md` and use the CLI browser route: `oracle --engine browser --browser-model-strategy ignore --browser-attachments auto --browser-max-concurrent-tabs 3 --model gpt-5.5-pro --timeout auto --heartbeat 30 --wait ...`.
+- Do not treat a missing `mcp__oracle__consult` tool as Oracle unavailable. In Codex, the normal Oracle Pro route is CLI-browser-first.
+- Browser Pro review is a long-wait route. Use a Codex shell/tool timeout of at least 65 minutes. If the tool call times out while `oracle status` shows the slug as `running`, reattach with `oracle session <slug> --live --write-output <response-path>` or harvest with `oracle session <slug> --harvest --write-output <response-path>`.
+- Only fall back to Codex xhigh after Oracle records a terminal error for that slug and no model is still running. Long silence is pending, not failure.
+- Browser Oracle is best for one-shot stress tests. For multi-round loops, use unique Oracle slugs per round and save each response path; do not assume a persistent `agent_id` exists.
+
 ## Claude-Aligned Reviewer Memory and Debate
 
 For `difficulty: hard` and `difficulty: nightmare`, maintain `review-stage/REVIEWER_MEMORY.md`.

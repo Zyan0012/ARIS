@@ -32,6 +32,8 @@ User input (PROBLEM + vague APPROACH)
 
 ## Constants
 
+- **REVIEWER_BACKEND = `codex`** - Default reviewer route. If `$ARGUMENTS` explicitly contains `--reviewer: oracle-pro` or `reviewer: oracle-pro`, route reviewer calls through the shared Oracle CLI browser contract in `../shared-references/reviewer-routing.md`. Do not treat a missing Oracle MCP tool as Oracle unavailable; Codex skills use the CLI browser route by default.
+
 - **REVIEWER_MODEL = `gpt-5.4`** — Reviewer model used via a secondary Codex agent.
 - **MAX_ROUNDS = 5** — Maximum review-revise rounds.
 - **SCORE_THRESHOLD = 9** — Minimum overall score to stop.
@@ -289,6 +291,15 @@ Use this structure:
 
 ### Phase 2: External Method Review (Round 1)
 
+Resolve the reviewer route before sending the review:
+
+- If no reviewer override is present, use the default Codex reviewer pattern below.
+- If `$ARGUMENTS` contains `--reviewer: oracle-pro` or `reviewer: oracle-pro`, follow `../shared-references/reviewer-routing.md` and run the Oracle CLI browser route with a unique slug and `--write-output refine-logs/round-1-oracle-pro.response.md`.
+- Do not check only for `mcp__oracle__consult`. In Codex, Oracle Pro review is available when the `oracle` CLI is available and `oracle --dry-run summary ...` accepts the assembled prompt/files.
+- If the Oracle CLI/browser route fails, write the exact warning and failure reason into `round-1-review.md`, then fall back to the Codex reviewer pattern below.
+- For Oracle review, save the response path and slug in `REFINE_STATE.json`; `agent_id` may be null because browser Oracle runs are one-shot.
+- Browser Pro review is a long-wait route. Use `--timeout auto --heartbeat 30 --wait` and a Codex shell/tool timeout of at least 65 minutes. If the shell/tool call times out while Oracle has a `running` session, reattach with `oracle session <slug> --live --write-output <response-path>` or harvest with `oracle session <slug> --harvest --write-output <response-path>`; do not rerun the prompt or fall back until Oracle records a terminal error.
+
 Send the full proposal to GPT-5.4 for an **elegance-first, frontier-aware, method-first** review. The reviewer should spend most of the critique budget on the method itself, not on expanding the experiment menu.
 
 ```
@@ -467,6 +478,13 @@ Save to `refine-logs/round-N-refinement.md`:
 **Checkpoint:** Update `refine-logs/REFINE_STATE.json` with `{"phase": "refine", "round": N, ...}`.
 
 ### Phase 4: Re-evaluation (Round 2+)
+
+Use the same reviewer backend selected in Phase 2.
+
+- If the route is `codex`, send the revised proposal back to GPT-5.4 in the same agent with `send_input`.
+- If the route is `oracle-pro`, run a new Oracle CLI browser review for each round using the same prompt content, the previous review summary, and the full revised proposal. Use a unique slug such as `research-refine-r<N>-<short-topic>` and `--write-output refine-logs/round-N-oracle-pro.response.md`.
+- Do not mark Oracle unavailable just because no MCP tool is exposed. Only fall back after the CLI browser route itself fails or `oracle --dry-run summary ...` rejects the command.
+- Long silence from GPT-5.5 Pro is pending, not failed. Check `oracle status` and the session meta before deciding to fall back.
 
 Send the revised proposal back to GPT-5.4 in the **same agent**:
 
@@ -686,6 +704,7 @@ Suggested next step: /experiment-plan
 - **Review the mechanism, not the parts count.** A long module list is not novelty.
 - **Pushback is encouraged.** If reviewer feedback causes drift or unnecessary complexity, argue back with evidence.
 - **ALWAYS use `reasoning_effort: xhigh`** for all Codex review calls.
+- **Oracle route is CLI-first in Codex.** For `--reviewer: oracle-pro`, use `oracle --engine browser --browser-model-strategy ignore --browser-attachments auto --browser-max-concurrent-tabs 3 --model gpt-5.5-pro ...` per `../shared-references/reviewer-routing.md`. A missing Oracle MCP tool is not a valid fallback reason.
 - **Save `agent_id` from Phase 2** and use `send_input` for later rounds.
 - **Do not fabricate results.** Only describe expected evidence and planned experiments.
 - **Be specific about compute and data assumptions.** Vague "we'll train a model" is not enough.

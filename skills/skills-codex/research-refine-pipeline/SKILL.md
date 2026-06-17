@@ -30,6 +30,10 @@ For stage-specific detail, read these sibling skills only when needed:
 
 Do not plan a large experiment suite on top of an unstable method. First stabilize the thesis. Then turn the stable thesis into experiments.
 
+## Reviewer Routing
+
+If `$ARGUMENTS` contains `--reviewer: oracle-pro` or `reviewer: oracle-pro`, propagate that reviewer override into the internal `research-refine` stage. The pipeline must follow `../shared-references/reviewer-routing.md`: in Codex, Oracle Pro review is CLI-browser-first (`oracle --engine browser ... --model gpt-5.5-pro`), not MCP-tool-first. Do not fall back merely because `mcp__oracle__consult` is not exposed.
+
 ## Default Outputs
 
 - `refine-logs/FINAL_PROPOSAL.md`
@@ -183,4 +187,3 @@ Best next step:
 /experiment-plan   -> experiment planning only
 /run-experiment    -> execution
 ```
-
