@@ -1,6 +1,8 @@
 # Research Brief
 
 > **Template for document-based input to `/idea-discovery` or `/research-pipeline`.** Provide detailed context instead of a one-line prompt.
+>
+> **Length guideline:** keep the core brief to **1–2 pages (~4–8k chars)**. The research-wiki `query_pack.md` that downstream skills consume is hard-capped at 8,000 chars — an oversized brief crowds out gaps / failed-ideas / paper context. Put long material (full notes, logs, draft text) in separate files and reference them by path.
 
 ## Problem Statement
 [2-3 paragraphs: What is broken/missing in current approaches?]

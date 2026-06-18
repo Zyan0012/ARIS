@@ -3,7 +3,8 @@
 ARIS audits emit machine-readable verdicts. The `assurance` axis decides whether
 those verdicts are advisory (draft mode) or load-bearing gates (submission mode).
 This contract is referenced by `paper-writing`, `paper-claim-audit`, `citation-audit`,
-`proof-checker`, and the external verifier `tools/verify_paper_audits.sh`.
+`proof-checker`, and the external verifier (canonical name `verify_paper_audits.sh`;
+callers resolve the actual path via `integration-contract.md` §2).
 
 ## Why a separate axis from `effort`
 
@@ -35,8 +36,8 @@ finalization."
 ### `submission` — load-bearing audits
 - All mandatory audits **must** emit a verdict (one of the 6 below).
 - Silent skip is **forbidden**.
-- `paper-writing` Phase 6 invokes `tools/verify_paper_audits.sh`; non-zero exit
-  blocks Final Report.
+- `paper-writing` Phase 6 invokes `verify_paper_audits.sh` (resolved per
+  `integration-contract.md` §2); non-zero exit blocks Final Report.
 - The Final Report tags itself `submission-ready: yes/no` based on verifier output.
 - For: conference / journal submission, anything you'd put your name on.
 
@@ -101,7 +102,7 @@ human-readable Markdown sibling). The JSON must contain at minimum:
   },
   "trace_path": ".aris/traces/paper-claim-audit/2026-04-21_run01/",
   "thread_id":  "019dae73-fc12-4ab8-...",
-  "reviewer_model": "gpt-5.4",
+  "reviewer_model": "gpt-5.5",
   "reviewer_reasoning": "xhigh",
   "generated_at": "2026-04-21T14:23:01Z",
   "details": {
@@ -131,7 +132,8 @@ Field semantics:
 
 ## Verifier Contract
 
-`tools/verify_paper_audits.sh <paper-dir>` is the single source of truth for
+`verify_paper_audits.sh <paper-dir>` (canonical name; resolved per
+`integration-contract.md` §2) is the single source of truth for
 "are mandatory audits complete and current?" It must:
 
 1. Locate the paper-writing manifest (which mandatory audits applied this run).

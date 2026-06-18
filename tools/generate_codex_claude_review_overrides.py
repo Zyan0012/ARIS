@@ -74,7 +74,7 @@ def normalize_description(text: str) -> str:
     text = text or "Claude-review override for a Codex-native ARIS skill."
     text = text.replace("GPT using a secondary Codex agent", "Claude via claude-review MCP")
     text = text.replace("using a secondary Codex agent", "using Claude Code via claude-review MCP")
-    text = text.replace("via GPT-5.4 xhigh review", "via Claude review through claude-review MCP")
+    text = text.replace("via GPT-5.5 xhigh review", "via Claude review through claude-review MCP")
     return text
 
 
@@ -142,9 +142,9 @@ def transform_body(text: str) -> str:
     text = text.replace("secondary Codex agent", "Claude reviewer via `claude-review` MCP")
     text = text.replace("via a Claude reviewer via `claude-review` MCP (xhigh reasoning)", "via `claude-review` MCP (high-rigor review)")
     text = text.replace("secondary Codex agent (xhigh reasoning)", "Claude reviewer via `claude-review` MCP")
-    text = text.replace("GPT-5.4 xhigh", "Claude review")
-    text = text.replace("Send the full paper text to GPT-5.4 xhigh:", "Send the full paper text to Claude through `claude-review`:")
-    text = text.replace("Send the complete outline to GPT-5.4 xhigh for feedback:", "Send the complete outline to Claude for feedback:")
+    text = text.replace("GPT-5.5 xhigh", "Claude review")
+    text = text.replace("Send the full paper text to GPT-5.5 xhigh:", "Send the full paper text to Claude through `claude-review`:")
+    text = text.replace("Send the complete outline to GPT-5.5 xhigh for feedback:", "Send the complete outline to Claude for feedback:")
     text = text.replace("Call REVIEWER_MODEL via `spawn_agent` (`spawn_agent`) with xhigh reasoning:", "Call REVIEWER_MODEL via `mcp__claude-review__review_start` with high-rigor review:")
     text = text.replace("Send a detailed prompt with xhigh reasoning:", "Send a detailed prompt with high-rigor review:")
     text = text.replace("Use `send_input` with the returned agent id to continue the conversation:", "Use `mcp__claude-review__review_reply_start` with the saved completed `threadId`, then poll `mcp__claude-review__review_status` with the returned `jobId` until `done=true` to continue the conversation:")
@@ -159,7 +159,7 @@ def transform_body(text: str) -> str:
     text = text.replace("- **ALWAYS use `reasoning_effort: xhigh`** for all Codex review calls.", "- **Always ask the Claude reviewer for strict, high-rigor feedback** in every review round.")
     text = text.replace("- **Save `agent_id` from Phase 2** and use `send_input` for later rounds.", "- **Save the completed `threadId` from Phase 2** and use `mcp__claude-review__review_reply_start` plus `mcp__claude-review__review_status` for later rounds.")
     text = text.replace("- **Use `send_input`** for Round 2 to maintain conversation context", "- **Use `mcp__claude-review__review_reply_start` plus `mcp__claude-review__review_status`** for Round 2 to maintain conversation context")
-    text = text.replace("GPT-5.4 responses", "Claude reviewer responses")
+    text = text.replace("GPT-5.5 responses", "Claude reviewer responses")
     text = text.replace("`agent_id`", "`thread_id`")
     text = text.replace('"agent_id"', '"thread_id"')
     text = text.replace("ALWAYS use `reasoning_effort: xhigh` for reviews", "Always ask the Claude reviewer for strict, high-rigor feedback.")

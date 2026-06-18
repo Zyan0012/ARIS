@@ -1,8 +1,8 @@
 ---
 name: paper-writing
-description: "Workflow 3: Full paper writing pipeline. Orchestrates paper-plan → paper-figure → figure-spec/paper-illustration/mermaid-diagram → paper-write → paper-compile → auto-paper-improvement-loop to go from a narrative report to a polished PDF. At `— effort: max | beast` (or explicit `— assurance: submission`), Phase 6 gates the Final Report on `tools/verify_paper_audits.sh`; the PDF is labelled `submission-ready` only when the external verifier is green. Use when user says \"写论文全流程\", \"write paper pipeline\", \"从报告到PDF\", \"paper writing\", or wants the complete paper generation workflow."
+description: "Workflow 3: Full paper writing pipeline that goes from a narrative report to a polished, submission-ready PDF. Use when user says \"写论文全流程\", \"write paper pipeline\", \"从报告到PDF\", \"paper writing\", or wants the complete paper generation workflow."
 argument-hint: [narrative-report-path-or-topic]
-allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob, Agent, Skill
+allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob, Skill
 ---
 
 # Workflow 3: Paper Writing Pipeline
@@ -26,7 +26,7 @@ In this hybrid pack, the pipeline itself is unchanged, but `paper-plan` and `pap
 
 - **VENUE = `ICLR`** — Target venue. Options: `ICLR`, `NeurIPS`, `ICML`, `CVPR`, `ACL`, `AAAI`, `ACM`, `IEEE_JOURNAL` (IEEE Transactions / Letters), `IEEE_CONF` (IEEE conferences). Affects style file, page limit, citation format.
 - **MAX_IMPROVEMENT_ROUNDS = 2** — Number of review→fix→recompile rounds in the improvement loop.
-- **REVIEWER_MODEL = `gpt-5.4`** — Model used via Codex MCP for plan review, figure review, writing review, and improvement loop.
+- **REVIEWER_MODEL = `gpt-5.5`** — Model used via Codex MCP for plan review, figure review, writing review, and improvement loop.
 - **AUTO_PROCEED = true** — Auto-continue between phases. Set `false` to pause and wait for user approval after each phase.
 - **HUMAN_CHECKPOINT = false** — When `true`, the improvement loop (Phase 5) pauses after each round's review to let you see the score and provide custom modification instructions. When `false` (default), the loop runs fully autonomously. Passed through to `/auto-paper-improvement-loop`.
 - **ILLUSTRATION = `figurespec`** — Architecture/illustration generator for Phase 2b: `figurespec` (default, deterministic JSON→SVG via `/figure-spec`, best for architecture/workflow/topology), `gemini` (AI-generated via `/paper-illustration`, best for qualitative method illustrations; needs `GEMINI_API_KEY`), `mermaid` (Mermaid syntax via `/mermaid-diagram`, free, best for flowcharts), or `false` (skip Phase 2b, manual only).
@@ -75,7 +75,8 @@ echo "<resolved-level>" > paper/.aris/assurance.txt   # draft or submission
   paper-claim-audit, citation-audit) are treated as load-bearing gates. Each
   sub-audit must emit its JSON artifact (PASS / WARN / FAIL / NOT_APPLICABLE /
   BLOCKED / ERROR) — never silent-skip. Phase 6 runs
-  `tools/verify_paper_audits.sh`; a non-zero exit blocks the Final Report.
+  `verify_paper_audits.sh` (canonical name; resolved per
+  `shared-references/integration-contract.md` §2); a non-zero exit blocks the Final Report.
 
 **Escape hatch:** a user wanting the old "beast = depth-only, no audit gate"
 can pass `— effort: beast, assurance: draft` explicitly. Legal but
@@ -86,7 +87,7 @@ discouraged for actual submissions. See
 
 ```
 📋 Assurance: <level> (derived from effort: <effort>)
-   <either "current behavior, no audit gate" OR "mandatory audits gated by tools/verify_paper_audits.sh">
+   <either "current behavior, no audit gate" OR "mandatory audits gated by verify_paper_audits.sh (resolved per integration-contract §2)">
 ```
 
 ### Phase 1: Paper Plan
@@ -103,7 +104,7 @@ Invoke `/paper-plan` to create the structural outline:
 - Design section structure (5-8 sections depending on paper type)
 - Plan figure/table placement with data sources
 - Scaffold citation structure
-- GPT-5.4 reviews the plan for completeness
+- GPT-5.5 reviews the plan for completeness
 
 **Output:** `PAPER_PLAN.md` with section plan, figure plan, citation scaffolding.
 
@@ -135,7 +136,7 @@ Invoke `/paper-figure` to generate data-driven plots and tables:
 - Generate matplotlib/seaborn plots from JSON/CSV data
 - Generate LaTeX comparison tables
 - Create `figures/latex_includes.tex` for easy insertion
-- GPT-5.4 reviews figure quality and captions
+- GPT-5.5 reviews figure quality and captions
 
 **Output:** `figures/` directory with PDFs, generation scripts, and LaTeX snippets.
 
@@ -212,7 +213,7 @@ Invoke `/paper-write` to generate section-by-section LaTeX:
 - Clean stale files from previous section structures
 - Automated bib cleaning (remove uncited entries)
 - De-AI polish (remove "delve", "pivotal", "landscape"...)
-- GPT-5.4 reviews each section for quality
+- GPT-5.5 reviews each section for quality
 
 **Output:** `paper/` directory with `main.tex`, `sections/*.tex`, `references.bib`, `math_commands.tex`.
 
@@ -265,7 +266,7 @@ Shall I proceed with the improvement loop?
 ```
 if paper contains \begin{theorem} or \begin{lemma} or \begin{proof}:
     Run /proof-checker "paper/"
-    This invokes GPT-5.4 xhigh to:
+    This invokes GPT-5.5 xhigh to:
     - Verify all proof steps (hypothesis discharge, interchange justification, etc.)
     - Check for logic gaps, quantifier errors, missing domination conditions
     - Attempt counterexamples on key lemmas
@@ -308,9 +309,9 @@ Invoke `/auto-paper-improvement-loop` to polish the paper:
 
 **What this does (2 rounds):**
 
-**Round 1:** GPT-5.4 xhigh reviews the full paper → identifies CRITICAL/MAJOR/MINOR issues → Claude Code implements fixes → recompile → save `main_round1.pdf`
+**Round 1:** GPT-5.5 xhigh reviews the full paper → identifies CRITICAL/MAJOR/MINOR issues → Claude Code implements fixes → recompile → save `main_round1.pdf`
 
-**Round 2:** GPT-5.4 xhigh re-reviews with conversation context → identifies remaining issues → Claude Code implements fixes → recompile → save `main_round2.pdf`
+**Round 2:** GPT-5.5 xhigh re-reviews with conversation context → identifies remaining issues → Claude Code implements fixes → recompile → save `main_round2.pdf`
 
 **Typical improvements:**
 - Fix assumption-model mismatches
@@ -361,7 +362,7 @@ After the final paper-claim-audit passes, run `/citation-audit` to verify every 
 ```
 if paper/references.bib (or paper.bib) exists and contains entries cited from sec/*.tex:
     Run /citation-audit "paper/"
-    Fresh cross-family reviewer (gpt-5.4 via Codex MCP) with web/DBLP/arXiv lookup
+    Fresh cross-family reviewer (gpt-5.5 via Codex MCP) with web/DBLP/arXiv lookup
     verifies each entry:
       (i)   EXISTENCE — paper resolves at claimed arXiv ID / DOI / venue
       (ii)  METADATA — author names, year, venue, title match canonical sources
@@ -437,7 +438,8 @@ skipping audits while claiming to have run them.
    [ ] 1. /proof-checker        → paper/PROOF_AUDIT.json
    [ ] 2. /paper-claim-audit    → paper/PAPER_CLAIM_AUDIT.json
    [ ] 3. /citation-audit       → paper/CITATION_AUDIT.json
-   [ ] 4. bash <ARIS_REPO>/tools/verify_paper_audits.sh paper/ --assurance submission
+   [ ] 4. Resolve $AUDIT_VERIFIER per integration-contract §2 (Policy A),
+          then: bash "$AUDIT_VERIFIER" paper/ --assurance submission
    [ ] 5. Block Final Report iff verifier exit code != 0
 ```
 
@@ -451,7 +453,7 @@ skipping audits while claiming to have run them.
 
 #### Invoking the three audits
 
-Each sub-audit runs in a **fresh Codex thread** (never `codex-reply`,
+Each sub-audit runs in a **fresh Codex thread** (never a continuation reply,
 never pass prior audit output as context — this preserves reviewer
 independence per `shared-references/reviewer-independence.md`).
 
@@ -472,8 +474,28 @@ Order:
 
 #### Running the verifier
 
+Resolve `$AUDIT_VERIFIER` via the canonical strict-safe chain (see
+[`shared-references/integration-contract.md`](../shared-references/integration-contract.md) §2,
+Policy A — gate). Under `assurance: submission` the verifier is
+load-bearing: if the helper is unresolved the SKILL aborts the Final
+Report rather than producing an unverified `submission-ready` claim.
+
 ```bash
-bash <ARIS_REPO>/tools/verify_paper_audits.sh paper/ --assurance submission
+# Resolve the audit verifier (Policy A — gate; Codex-side chain).
+if [ -z "${ARIS_REPO:-}" ] && [ -f .aris/installed-skills-codex.txt ]; then
+    ARIS_REPO=$(awk -F'\t' '$1=="repo_root"{print $2; exit}' .aris/installed-skills-codex.txt 2>/dev/null) || true
+fi
+AUDIT_VERIFIER=""
+[ -n "${ARIS_REPO:-}" ] && [ -f "$ARIS_REPO/tools/verify_paper_audits.sh" ] && AUDIT_VERIFIER="$ARIS_REPO/tools/verify_paper_audits.sh"
+[ -z "$AUDIT_VERIFIER" ] && [ -f tools/verify_paper_audits.sh ] && AUDIT_VERIFIER="tools/verify_paper_audits.sh"
+[ -z "$AUDIT_VERIFIER" ] && [ -f ~/.codex/skills/paper-writing/verify_paper_audits.sh ] && AUDIT_VERIFIER="$HOME/.codex/skills/paper-writing/verify_paper_audits.sh"
+[ -z "$AUDIT_VERIFIER" ] && {
+  echo "ERROR: verify_paper_audits.sh not resolved at \$ARIS_REPO/tools/, tools/, or ~/.codex/skills/paper-writing/." >&2
+  echo "       assurance=submission requires the verifier; aborting Final Report." >&2
+  exit 1
+}
+
+bash "$AUDIT_VERIFIER" paper/ --assurance submission
 ```
 
 - **Exit 0** — All mandatory audits present, JSON schema-valid, hashes fresh,

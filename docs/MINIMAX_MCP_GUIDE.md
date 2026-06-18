@@ -59,7 +59,7 @@ pip3 install -r mcp-servers/minimax-chat/requirements.txt
       "env": {
         "MINIMAX_API_KEY": "你的MiniMax API Key",
         "MINIMAX_BASE_URL": "https://api.minimax.io/v1",
-        "MINIMAX_MODEL": "MiniMax-M2.7"
+        "MINIMAX_MODEL": "MiniMax-M3"
       }
     }
   }
@@ -72,7 +72,7 @@ pip3 install -r mcp-servers/minimax-chat/requirements.txt
 
 ## 改写所有 Skills（重要！）
 
-`auto-review-loop-minimax` 只是**一个** skill 的 MiniMax 版。项目中有 **12 个 skill** 使用 Codex MCP (`mcp__codex__codex`) 调用 GPT-5.4 做审查。如果你想全面切换到 MiniMax，需要让 Claude Code 把它们全部改写。
+`auto-review-loop-minimax` 只是**一个** skill 的 MiniMax 版。项目中有 **12 个 skill** 使用 Codex MCP (`mcp__codex__codex`) 调用 GPT-5.5 做审查。如果你想全面切换到 MiniMax，需要让 Claude Code 把它们全部改写。
 
 安装完 MCP 服务器后，在 Claude Code 对话中执行：
 
@@ -155,7 +155,7 @@ curl -s "https://api.minimax.io/v1/chat/completions" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $MINIMAX_API_KEY" \
   -d '{
-    "model": "MiniMax-M2.7",
+    "model": "MiniMax-M3",
     "messages": [{"role": "user", "content": "Say hello"}],
     "max_tokens": 50
   }'

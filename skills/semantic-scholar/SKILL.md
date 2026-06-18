@@ -23,7 +23,11 @@ This skill is the **published venue** counterpart to `/arxiv`:
 ## Constants
 
 - **MAX_RESULTS = 10** — Default number of search results.
-- **FETCH_SCRIPT** — `tools/semantic_scholar_fetch.py` relative to the project root. Fall back to inline Python if not found.
+- **S2_FETCHER** — canonical name `semantic_scholar_fetch.py`, resolved per
+  [`shared-references/integration-contract.md`](../shared-references/integration-contract.md) §2
+  (Policy D1 — primary + fallback cascade). If unresolved (canonical
+  chain exhausted), fall back to the inline Python alternative
+  documented in Step 2.
 - **DEFAULT_FILTERS** — For general research queries, apply these by default to reduce noise:
   - `--fields-of-study "Computer Science,Engineering"`
   - `--publication-types JournalArticle,Conference`
@@ -60,17 +64,24 @@ If the argument matches a DOI pattern (`10.XXXX/...`), a Semantic Scholar ID (40
 
 ### Step 2: Search Papers
 
-Locate the fetch script:
+Resolve `$S2_FETCHER` via the canonical strict-safe chain (see
+[`shared-references/integration-contract.md`](../shared-references/integration-contract.md) §2):
 
 ```bash
-SCRIPT=$(find tools/ -name "semantic_scholar_fetch.py" 2>/dev/null | head -1)
-[ -z "$SCRIPT" ] && SCRIPT=$(find ~/.claude/skills/semantic-scholar/ -name "semantic_scholar_fetch.py" 2>/dev/null | head -1)
+cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" || exit 1
+if [ -z "${ARIS_REPO:-}" ] && [ -f .aris/installed-skills.txt ]; then
+    ARIS_REPO=$(awk -F'\t' '$1=="repo_root"{print $2; exit}' .aris/installed-skills.txt 2>/dev/null) || true
+fi
+S2_FETCHER=".aris/tools/semantic_scholar_fetch.py"
+[ -f "$S2_FETCHER" ] || S2_FETCHER="tools/semantic_scholar_fetch.py"
+[ -f "$S2_FETCHER" ] || { [ -n "${ARIS_REPO:-}" ] && S2_FETCHER="$ARIS_REPO/tools/semantic_scholar_fetch.py"; }
+[ -f "$S2_FETCHER" ] || S2_FETCHER=""
 ```
 
 **Standard search** (default — relevance-ranked):
 
 ```bash
-python3 "$SCRIPT" search "QUERY" --max MAX_RESULTS \
+python3 "$S2_FETCHER" search "QUERY" --max MAX_RESULTS \
   --fields-of-study "Computer Science,Engineering" \
   --publication-types JournalArticle,Conference
 ```
@@ -78,13 +89,13 @@ python3 "$SCRIPT" search "QUERY" --max MAX_RESULTS \
 **Bulk search** (when `- sort:` is specified, or MAX_RESULTS > 100):
 
 ```bash
-python3 "$SCRIPT" search-bulk "QUERY" --max MAX_RESULTS \
+python3 "$S2_FETCHER" search-bulk "QUERY" --max MAX_RESULTS \
   --sort citationCount:desc \
   --fields-of-study "Computer Science" \
   --year "2020-"
 ```
 
-If `semantic_scholar_fetch.py` is not found, fall back to inline Python using `urllib` against `https://api.semanticscholar.org/graph/v1/paper/search`.
+If `$S2_FETCHER` is empty (Policy D1 cascade), fall back to inline Python using `urllib` against `https://api.semanticscholar.org/graph/v1/paper/search`.
 
 **Recommended filter combos** (from testing):
 
@@ -102,7 +113,7 @@ If `semantic_scholar_fetch.py` is not found, fall back to inline Python using `u
 When a single paper ID is requested:
 
 ```bash
-python3 "$SCRIPT" paper "PAPER_ID"
+python3 "$S2_FETCHER" paper "PAPER_ID"
 ```
 
 Where PAPER_ID can be:

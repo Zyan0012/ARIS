@@ -21,6 +21,17 @@ This includes:
 
 Do not trace purely informational agent calls that are not acting as reviewers.
 
+## How to Trace
+
+After each reviewer call, save the trace using `save_trace.sh`,
+resolved through the canonical helper chain (see
+`integration-contract.md` §2 — failure policy C, "forensic helper").
+A Codex-side SKILL must NOT hard-code `tools/save_trace.sh`; instead
+it resolves `$TRACE_HELPER` via the chain and either invokes the
+helper or writes trace artifacts directly per the schemas below. If
+the resolver returns the empty string, write the four files inline
+— do not silently skip unless `--- trace: off` was requested.
+
 ## Trace Directory
 
 ```text
@@ -55,7 +66,7 @@ Do not trace purely informational agent calls that are not acting as reviewers.
   "purpose": "round-1-review",
   "timestamp": "2026-04-15T14:31:00+08:00",
   "tool": "spawn_agent",
-  "model": "gpt-5.4",
+  "model": "gpt-5.5",
   "reasoning_effort": "xhigh",
   "files_referenced": ["paper/sections/3_method.tex", "results/table1.csv"],
   "prompt": "<full prompt text>"
@@ -72,7 +83,7 @@ Do not trace purely informational agent calls that are not acting as reviewers.
   "purpose": "round-1-review",
   "timestamp": "2026-04-15T14:33:00+08:00",
   "agent_id": "019d8fe0-b25d-...",
-  "model": "gpt-5.4",
+  "model": "gpt-5.5",
   "duration_ms": 142000,
   "status": "ok"
 }

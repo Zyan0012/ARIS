@@ -188,6 +188,35 @@ PERSONAL_PATTERNS=(
     '122\.'
 )
 
+# ─── Stale-pristine detection ──────────────────────────────────────────────────
+# A local SKILL.md that is byte-identical to SOME older committed upstream
+# version is NOT a user customization — it is just a stale install. This matters
+# because old releases occasionally contained lines (since redacted upstream)
+# that trip PERSONAL_PATTERNS; without this check such installs get stuck in
+# "needs manual merge" forever even though a plain overwrite is exactly right.
+# Requires the upstream dir to live inside a git clone; otherwise we skip the
+# check and keep the conservative needs-merge classification.
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+GIT_HISTORY_OK=false
+if git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    GIT_HISTORY_OK=true
+fi
+
+is_pristine_historical_copy() {
+    # $1 = local file, $2 = repo-relative path of its upstream counterpart
+    $GIT_HISTORY_OK || return 1
+    local lf="$1" rel="$2" local_hash commits c blob
+    local_hash=$(git -C "$REPO_ROOT" hash-object "$lf" 2>/dev/null) || return 1
+    commits=$(git -C "$REPO_ROOT" log --format='%H' -n 200 -- "$rel" 2>/dev/null) || return 1
+    for c in $commits; do
+        blob=$(git -C "$REPO_ROOT" rev-parse -q --verify "$c:$rel" 2>/dev/null) || continue
+        if [[ "$blob" == "$local_hash" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 echo -e "${BLUE}━━━ ARIS Smart Skill Update ━━━${NC}"
 echo -e "Scope:    ${SCOPE}"
 echo -e "Upstream: ${UPSTREAM_DIR}"
@@ -217,6 +246,7 @@ declare -a IDENTICAL_SKILLS=()
 declare -a SAFE_SKILLS=()
 declare -a MERGE_SKILLS=()
 declare -a LOCAL_SKILLS=()
+declare -a STALE_PRISTINE_SKILLS=()
 
 # Track upstream skill names for local-only detection
 declare -a UPSTREAM_NAMES=()
@@ -274,9 +304,18 @@ for skill_dir in "$UPSTREAM_DIR"/*/; do
     done
 
     if $has_personal; then
-        # Has personal customizations — needs careful merge
-        NEEDS_MERGE=$((NEEDS_MERGE + 1))
-        MERGE_SKILLS+=("$skill_name")
+        if is_pristine_historical_copy "$local_file" "skills/$skill_name/SKILL.md"; then
+            # Byte-identical to an older committed upstream version — the
+            # pattern hits are old upstream content (since redacted), not a
+            # user customization. Plain overwrite is the correct resolution.
+            SAFE_UPDATE=$((SAFE_UPDATE + 1))
+            SAFE_SKILLS+=("$skill_name")
+            STALE_PRISTINE_SKILLS+=("$skill_name")
+        else
+            # Has personal customizations — needs careful merge
+            NEEDS_MERGE=$((NEEDS_MERGE + 1))
+            MERGE_SKILLS+=("$skill_name")
+        fi
     else
         # Changed upstream, no personal info in local — safe to replace
         SAFE_UPDATE=$((SAFE_UPDATE + 1))
@@ -311,7 +350,18 @@ for s in "${NEW_SKILLS[@]:-}"; do [[ -n "$s" ]] && echo "   $s"; done
 echo ""
 
 echo -e "${BLUE}🔄 Updated upstream, no personal info (safe to replace): ${SAFE_UPDATE}${NC}"
-for s in "${SAFE_SKILLS[@]:-}"; do [[ -n "$s" ]] && echo "   $s"; done
+for s in "${SAFE_SKILLS[@]:-}"; do
+    [[ -n "$s" ]] || continue
+    is_stale=false
+    for sp in "${STALE_PRISTINE_SKILLS[@]:-}"; do
+        [[ "$sp" == "$s" ]] && is_stale=true && break
+    done
+    if $is_stale; then
+        echo -e "   $s ${BLUE}(stale pristine copy of an older release — old upstream lines trip the personal-info patterns, but it carries no local edits)${NC}"
+    else
+        echo "   $s"
+    fi
+done
 echo ""
 
 echo -e "${YELLOW}⚠️  Updated upstream + local customizations (needs manual merge): ${NEEDS_MERGE}${NC}"
@@ -321,7 +371,13 @@ for s in "${MERGE_SKILLS[@]:-}"; do
         # Show what personal patterns were found
         local_file="$LOCAL_DIR/$s/SKILL.md"
         for pattern in "${PERSONAL_PATTERNS[@]}"; do
-            match=$(grep -n "$pattern" "$local_file" 2>/dev/null | head -1)
+            # `|| true`: under `set -euo pipefail` this assignment would otherwise
+            # abort the whole script — grep exits 1 on no-match, and even on a match
+            # `head -1` closes the pipe early so grep dies with SIGPIPE (141). Either
+            # way pipefail propagates the failure and `set -e` kills the run *before*
+            # the Summary and the apply block, so `--apply` silently writes nothing
+            # whenever a skill is flagged "needs merge".
+            match=$(grep -n "$pattern" "$local_file" 2>/dev/null | head -1 || true)
             if [[ -n "$match" ]]; then
                 echo -e "     ${YELLOW}→ contains: ${match}${NC}"
                 break

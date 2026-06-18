@@ -12,14 +12,15 @@ Autonomously iterate: review → implement fixes → re-review, until the extern
 ## Constants
 
 - MAX_ROUNDS = 4
-- POSITIVE_THRESHOLD: score >= 6/10, or verdict contains "accept", "sufficient", "ready for submission"
+- POSITIVE_THRESHOLD: score >= 6/10 AND verdict ∈ {"ready", "almost"} — both must hold, matching the operative STOP CONDITION below. Verdict vocabulary is {"ready", "almost", "not ready"}. (Earlier wording used "or" + a stale verdict set; the AND form is authoritative.)
 - REVIEW_DOC: `review-stage/AUTO_REVIEW.md` (cumulative log) *(fall back to `./AUTO_REVIEW.md` for legacy projects)*
 - **OUTPUT_DIR = `review-stage/`** — All review-stage outputs go here. Create the directory if it doesn't exist.
-- REVIEWER_MODEL = `gpt-5.4` — Model used via a secondary Codex agent. Must be an OpenAI model (e.g., `gpt-5.4`, `o3`, `gpt-4o`)
-- **REVIEWER_BACKEND = `codex`** — Default: Codex reviewer agent at xhigh reasoning. Override with `--reviewer: oracle-pro` only when the user explicitly requests Oracle; if Oracle is unavailable, warn and fall back to Codex xhigh.
+- REVIEWER_MODEL = `gpt-5.5` — Model used via a secondary Codex agent. Must be an OpenAI model (e.g., `gpt-5.5`, `o3`, `gpt-4o`)
+- **REVIEWER_BACKEND = `codex`** — Default: Codex reviewer agent at xhigh reasoning. Override with `--reviewer: oracle-pro` only when the user explicitly requests Oracle; if Oracle is unavailable, warn and fall back to Codex xhigh. **Same-family note:** this default reviewer is a second Codex/GPT agent — valid for Type-A completeness/drive review, but not a cross-family Type-B verdict; install a `skills-codex-claude-review` / `skills-codex-gemini-review` overlay for a cross-family acquittal (see `shared-references/reviewer-routing.md`).
 - **HUMAN_CHECKPOINT = false** — When `true`, pause after each round's review (Phase B) and present the score + weaknesses to the user. Wait for user input before proceeding to Phase C. The user can: approve the suggested fixes, provide custom modification instructions, skip specific fixes, or stop the loop early. When `false` (default), the loop runs fully autonomously.
 - **COMPACT = false** — When `true`, (1) read `EXPERIMENT_LOG.md` and `findings.md` instead of parsing full logs on session recovery, (2) append key findings to `findings.md` after each round.
 - **REVIEWER_DIFFICULTY = medium** — Controls adversarial depth: `medium` uses normal Codex xhigh review through `spawn_agent` / `send_input`; `hard` adds Reviewer Memory and Debate Protocol; `nightmare` adds direct repository-reading adversarial verification by an independent reviewer.
+- **RENDER_HTML = true** — When `true` (default), auto-render `review-stage/AUTO_REVIEW.md` to HTML on loop termination via `/render-html`. Uses `--no-review` (the loop itself IS the cross-model review; the HTML render is a structural conversion). Set `false` to skip, or pass `— render html: false`.
 
 > 💡 Override: `/auto-review-loop "topic" — compact: true, human checkpoint: true, difficulty: hard`
 
@@ -111,8 +112,12 @@ spawn_agent:
   message: |
     [Round N/MAX_ROUNDS of autonomous review loop]
 
-    [Full research context: claims, methods, results, known weaknesses]
-    [Changes since last round, if any]
+    Review the work directly from its artifacts — executor notes are not
+    evidence, so read the files yourself rather than trusting my framing:
+    - Claims / paper draft: <path>
+    - Methods / code under review: <path(s)>
+    - Raw results (verbatim files, not a summary): <path(s)>
+    - Changed since last round: <changed-file paths> — read the diff, not my description
 
     Please act as a senior ML reviewer (NeurIPS/ICML level).
 
@@ -143,7 +148,7 @@ Then extract structured fields:
 - **Verdict** ("ready" / "almost" / "not ready")
 - **Action items** (ranked list of fixes)
 
-**STOP CONDITION**: If score >= 6 AND verdict contains "ready" or "almost" → stop loop, document final state.
+**STOP CONDITION**: If score >= 6 AND verdict ∈ {"ready", "almost"} (exact match — "not ready" does NOT qualify) → stop loop, document final state.
 
 #### Phase B.5: Reviewer Memory Update (hard + nightmare only)
 
@@ -330,6 +335,11 @@ When loop ends (positive assessment or max rounds):
    - Estimate effort needed for each
    - Suggest whether to continue manually or pivot
 7. **Feishu notification** (if configured): Send `pipeline_done` with final score progression table
+8. **Render HTML view** (if `RENDER_HTML = true`, default): invoke `/render-html` on the cumulative review log:
+   ```
+   /render-html "review-stage/AUTO_REVIEW.md" --no-review --state review-stage/REVIEW_STATE.json
+   ```
+   Pass `--state` explicitly when `REVIEW_STATE.json` exists (the helper does not auto-discover the sidecar). HTML lands at `review-stage/AUTO_REVIEW.html` with embedded source SHA256. **Non-blocking**: if `/render-html` fails, log the error and continue — the HTML is a convenience, not a termination prerequisite.
 
 ## Output Protocols
 
@@ -360,13 +370,11 @@ send_input:
   message: |
     [Round N update]
 
-    Since your last review, we have:
-    1. [Action 1]: [result]
-    2. [Action 2]: [result]
-    3. [Action 3]: [result]
-
-    Updated results table:
-    [paste metrics]
+    Since your last review these files changed — read them yourself; do not
+    take my word for what changed or whether it worked:
+    - Changed files: <paths>
+    - Raw diff: <path, or the `git diff` range>
+    - Updated raw results: <result-file paths> (verbatim files, not a pasted table)
 
     Please re-score and re-assess. Are the remaining concerns addressed?
     Same format: Score, Verdict, Remaining Weaknesses, Minimum Fixes.

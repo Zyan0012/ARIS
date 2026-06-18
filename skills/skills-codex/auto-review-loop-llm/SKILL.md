@@ -12,7 +12,7 @@ Autonomously iterate: review → implement fixes → re-review, until the extern
 ## Constants
 
 - MAX_ROUNDS = 4
-- POSITIVE_THRESHOLD: score >= 6/10, or verdict contains "accept", "sufficient", "ready for submission"
+- POSITIVE_THRESHOLD: score >= 6/10 AND verdict ∈ {"ready", "almost"} — both must hold, matching the operative STOP CONDITION below. Verdict vocabulary is {"ready", "almost", "not ready"}. (Earlier wording used "or" + a stale verdict set; the AND form is authoritative.)
 - REVIEW_DOC: `review-stage/AUTO_REVIEW.md` (cumulative log) *(fall back to `./AUTO_REVIEW.md` for legacy projects)*
 
 ## LLM Configuration
@@ -45,7 +45,7 @@ Add to `~/.codex/settings.json`:
 |----------|--------------|-----------|
 | **OpenAI** | `https://api.openai.com/v1` | `gpt-4o`, `o3` |
 | **DeepSeek** | `https://api.deepseek.com/v1` | `deepseek-chat`, `deepseek-reasoner` |
-| **MiniMax** | `https://api.minimax.io/v1` | `MiniMax-M2.7` |
+| **MiniMax** | `https://api.minimax.io/v1` | `MiniMax-M3` |
 | **Kimi (Moonshot)** | `https://api.moonshot.cn/v1` | `moonshot-v1-8k`, `moonshot-v1-32k` |
 | **ZhiPu (GLM)** | `https://open.bigmodel.cn/api/paas/v4` | `glm-4`, `glm-4-plus` |
 | **SiliconFlow** | `https://api.siliconflow.cn/v1` | `Qwen/Qwen2.5-72B-Instruct` |
@@ -151,7 +151,7 @@ curl -s "${LLM_BASE_URL}/chat/completions" \
 - **Verdict** ("ready" / "almost" / "not ready")
 - **Action items** (ranked list of fixes)
 
-**STOP**: If score >= 6 AND verdict contains "ready/almost"
+**STOP**: If score >= 6 AND verdict ∈ {"ready", "almost"} (exact — "not ready" does NOT qualify)
 
 #### Phase C: Implement Fixes
 

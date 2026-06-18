@@ -23,7 +23,7 @@
 核心机制：两个AI互相搞对方
 
 Claude Code = 执行者（写代码、跑实验、改论文）
-GPT-5.4 xhigh = 审稿人（打分、挑毛病、提修改）
+GPT-5.5 xhigh = 审稿人（打分、挑毛病、提修改）
 
 关键：它们互不评自己的作业
 这才是真正的反馈循环 🔁
@@ -79,7 +79,7 @@ AI帮你加速，但最终决策权在你 🧠
 🧰 11个Skills一览
 
 💡 idea-creator — 自动找idea
-🔬 research-review — GPT-5.4深度审稿
+🔬 research-review — GPT-5.5深度审稿
 🔁 auto-review-loop — 自动循环改到过
 📚 research-lit — 搜论文找gap
 📊 analyze-results — 分析实验结果

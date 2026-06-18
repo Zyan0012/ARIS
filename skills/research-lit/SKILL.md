@@ -1,6 +1,6 @@
 ---
 name: research-lit
-description: Search and analyze research papers, find related work, and summarize the literature landscape. Use when the user asks for papers, related work, literature review, academic search, or to understand what work already exists on a research topic.
+description: Search and analyze research papers, find related work, summarize key ideas. Use when user says "find papers", "related work", "literature review", "what does this paper say", or needs to understand academic papers.
 argument-hint: [paper-topic-or-url]
 allowed-tools: Bash(*), Read, Glob, Grep, WebSearch, WebFetch, Write, Agent, mcp__zotero__*, mcp__obsidian-vault__*
 ---
@@ -9,154 +9,153 @@ allowed-tools: Bash(*), Read, Glob, Grep, WebSearch, WebFetch, Write, Agent, mcp
 
 Research topic: $ARGUMENTS
 
-## Goal
-
-Build a compact but decision-useful literature review by combining:
-- the user's existing library and notes
-- structured arXiv search
-- a local Semantic Scholar skill when available
-- optional Semantic Scholar API search for venue-only papers
-- general web search as fallback and coverage expansion
-
-The output should help downstream skills such as `/idea-discovery`, `/research-refine`, `/experiment-plan`, and `/paper-writing`.
-
 ## Constants
 
-- **PAPER_LIBRARY**: Check these paths in order:
-  1. `papers/` in the current project
-  2. `literature/` in the current project
-  3. custom path from `CLAUDE.md` under `## Paper Library`
-- **MAX_LOCAL_PAPERS = 20**: Maximum local PDFs to inspect.
-- **ARXIV_DOWNLOAD = false**: Download arXiv PDFs only when explicitly requested.
-- **ARXIV_MAX_DOWNLOAD = 5**
-- **SEMANTIC_QUERY_VARIANTS = 3**: Generate 2-4 English Semantic Scholar queries, default 3.
-- **SEMANTIC_LIMIT_PER_QUERY = 8**
 
-## Source Selection
+- **PAPER_LIBRARY** — Local directory containing user's paper collection (PDFs). Check these paths in order:
+  1. `papers/` in the current project directory
+  2. `literature/` in the current project directory
+  3. Custom path specified by user in `CLAUDE.md` under `## Paper Library`
+- **MAX_LOCAL_PAPERS = 20** — Maximum number of local PDFs to scan (read first 3 pages each). If more are found, prioritize by filename relevance to the topic.
+- **SOURCES = `all`** — Which literature sources to search. Options: `zotero`, `obsidian`, `local`, `semantic`, `web`, `semantic-scholar`, `deepxiv`, `exa`, `gemini`, `openalex`, `all`. Full source table and selection rules: see `## Data Sources` below.
+- **ARXIV_DOWNLOAD = false** — When `true`, download top 3-5 most relevant arXiv PDFs to PAPER_LIBRARY after search. When `false` (default), only fetch metadata (title, abstract, authors) via arXiv API — no files are downloaded.
+- **ARXIV_MAX_DOWNLOAD = 5** — Maximum number of PDFs to download when `ARXIV_DOWNLOAD = true`.
 
-Overrides:
-- `/research-lit "topic" - paper library: ~/my_papers/` -> custom local PDF path
-- `/research-lit "topic" - sources: zotero, local` -> only search Zotero plus local PDFs
-- `/research-lit "topic" - sources: zotero` -> only search Zotero
-- `/research-lit "topic" - sources: web` -> only search the web
-- `/research-lit "topic" - sources: web, semantic` -> web plus local Semantic Scholar skill
-- `/research-lit "topic" - sources: web, semantic-scholar` -> web plus Semantic Scholar API
-- `/research-lit "topic" - arxiv download: true` -> download top relevant arXiv PDFs
-- `/research-lit "topic" - arxiv download: true, max download: 10` -> download up to 10 PDFs
+> 💡 Overrides:
+> - `/research-lit "topic" — paper library: ~/my_papers/` — custom local PDF path
+> - `/research-lit "topic" — sources: zotero, local` — only search Zotero + local PDFs
+> - `/research-lit "topic" — sources: web` — only search the web (skip all local)
+> - `/research-lit "topic" — sources: web, semantic` — web plus local Semantic Scholar direct search
+> - `/research-lit "topic" — sources: web, semantic-scholar` — also search Semantic Scholar for published venue papers (IEEE, ACM, etc.)
+> - `/research-lit "topic" — sources: all, deepxiv` — use default sources plus DeepXiv
+> - `/research-lit "topic" — arxiv download: true` — download top relevant arXiv PDFs
+> - `/research-lit "topic" — arxiv download: true, max download: 10` — download up to 10 PDFs
 
-Parse `$ARGUMENTS` for an optional `sources:` directive.
+## Data Sources
 
-Valid values:
-- `zotero`
-- `obsidian`
-- `local`
-- `semantic`
-- `semantic-scholar`
-- `deepxiv`
-- `exa`
-- `gemini`
-- `openalex`
-- `web`
-- `all`
+This skill checks multiple sources **in priority order**. All are optional — if a source is not configured or not requested, skip it silently.
 
-If no directive is provided, use `all`.
+### Source Selection
 
-Interpretation:
-- `all` means search the default sources: Zotero, Obsidian, local PDFs, local Semantic Scholar skill, arXiv, and web.
-- `semantic-scholar`, `deepxiv`, `exa`, `gemini`, and `openalex` are opt-in expansion sources. Add them explicitly, for example `sources: all, gemini`.
-- `semantic` means the local Semantic Scholar skill/script, while `semantic-scholar` means the repo's `semantic_scholar_fetch.py` API path for venue-only papers beyond arXiv.
+Parse `$ARGUMENTS` for a `— sources:` directive:
+- **If `— sources:` is specified**: Only search the listed sources (comma-separated). Valid values: `zotero`, `obsidian`, `local`, `semantic`, `web`, `semantic-scholar`, `deepxiv`, `exa`, `gemini`, `openalex`, `all`.
+- **If not specified**: Default to `all` — search Zotero, Obsidian, local PDFs, the local Semantic Scholar direct-search skill, arXiv, and WebSearch when available. `semantic-scholar`, `deepxiv`, `exa`, `gemini`, and `openalex` are **excluded** from `all`; they must be explicitly listed.
 
 Examples:
-
-```text
-/research-lit "diffusion models"
-/research-lit "diffusion models - sources: semantic, web"
-/research-lit "offline RL - sources: local, semantic"
-/research-lit "multimodal misinformation - sources: web, semantic-scholar"
-/research-lit "representation learning - sources: all, semantic-scholar"
-/research-lit "topic" - sources: deepxiv
-/research-lit "topic" - sources: all, deepxiv
-/research-lit "topic" - sources: exa
-/research-lit "topic" - sources: all, exa
-/research-lit "topic" - sources: gemini
-/research-lit "topic" - sources: all, gemini
-/research-lit "topic" - sources: openalex
-/research-lit "topic" - sources: semantic-scholar, openalex
+```
+/research-lit "diffusion models"                                    → all (default, no S2)
+/research-lit "diffusion models" — sources: all                     → all (default, no S2)
+/research-lit "diffusion models" — sources: zotero                  → Zotero only
+/research-lit "diffusion models" — sources: zotero, web             → Zotero + web
+/research-lit "diffusion models" — sources: local                   → local PDFs only
+/research-lit "topic" — sources: obsidian, local, web               → skip Zotero
+/research-lit "topic" — sources: web, semantic-scholar              → web + S2 API (IEEE/ACM venue papers)
+/research-lit "topic" — sources: deepxiv                            → DeepXiv only
+/research-lit "topic" — sources: all, deepxiv                       → default sources + DeepXiv
+/research-lit "topic" — sources: all, semantic-scholar              → all + S2 API
+/research-lit "topic" — sources: exa                               → Exa only (broad web + content extraction)
+/research-lit "topic" — sources: all, exa                          → default sources + Exa web search
+/research-lit "topic" — sources: gemini                            → Gemini only (AI-powered broad discovery)
+/research-lit "topic" — sources: all, gemini                       → default sources + Gemini discovery
+/research-lit "topic" — sources: gemini, semantic-scholar           → Gemini + S2 (broad discovery + venue metadata)
+/research-lit "topic" — sources: openalex                          → OpenAlex only (open citation graph + institutions)
+/research-lit "topic" — sources: semantic-scholar, openalex         → S2 + OpenAlex (complementary metadata)
 ```
 
-## Source Priority
+### Source Table
 
 | Priority | Source | ID | How to detect | What it provides |
 |----------|--------|----|---------------|-----------------|
-| 1 | Zotero (via MCP) | `zotero` | Try calling any `mcp__zotero__*` tool; if unavailable, skip | Collections, tags, annotations, PDF highlights, BibTeX, semantic search |
-| 2 | Obsidian (via MCP) | `obsidian` | Try calling any `mcp__obsidian-vault__*` tool; if unavailable, skip | Research notes, paper summaries, tagged references, wikilinks |
-| 3 | Local PDFs | `local` | `Glob: papers/**/*.pdf, literature/**/*.pdf` | Raw PDF content (first 3 pages) |
-| 4 | Local Semantic Scholar skill | `semantic` | `~/.codex/skills/semantic-scholar-search/scripts/search.py` or Windows-mounted fallback exists | Direct Semantic Scholar retrieval tuned for the local workflow |
-| 5 | arXiv API | implicit | `arxiv_fetch.py` exists | Structured preprint search and optional PDF download |
-| 6 | Web search | `web` | Always available | arXiv, project pages, Google Scholar snippets, venue pages |
-| 7 | Semantic Scholar API | `semantic-scholar` | `tools/semantic_scholar_fetch.py` exists | Published venue papers with citation counts, venue metadata, and TLDR; runs only when explicitly requested |
-| 8 | DeepXiv CLI | `deepxiv` | `tools/deepxiv_fetch.py` and installed `deepxiv` CLI | Progressive paper retrieval: search, brief, head, section, trending, web search; runs only when explicitly requested |
-| 9 | Exa Search | `exa` | `tools/exa_search.py` and installed `exa-py` SDK | AI-powered broad web search with content extraction; runs only when explicitly requested |
-| 10 | Gemini (MCP / CLI) | `gemini` | `mcp__gemini-cli__ask-gemini` tool available, or `gemini` CLI installed | AI-powered broad literature discovery; runs only when explicitly requested |
-| 11 | OpenAlex | `openalex` | `tools/openalex_fetch.py` exists | Open citation graph with institutional affiliations, funding data, and broad metadata; runs only when explicitly requested |
+| 1 | **Zotero** (via MCP) | `zotero` | Try calling any `mcp__zotero__*` tool — if unavailable, skip | Collections, tags, annotations, PDF highlights, BibTeX, semantic search |
+| 2 | **Obsidian** (via MCP) | `obsidian` | Try calling any `mcp__obsidian-vault__*` tool — if unavailable, skip | Research notes, paper summaries, tagged references, wikilinks |
+| 3 | **Local PDFs** | `local` | `Glob: papers/**/*.pdf, literature/**/*.pdf` | Raw PDF content (first 3 pages) |
+| 4 | **Local Semantic Scholar skill** | `semantic` | `~/.codex/skills/semantic-scholar-search/scripts/search.py` or Windows-mounted fallback exists | Direct Semantic Scholar retrieval tuned for the local workflow; runs by default when available |
+| 5 | **Web search** | `web` | Always available (WebSearch) | arXiv, Semantic Scholar, Google Scholar |
+| 6 | **Semantic Scholar API** | `semantic-scholar` | `$S2_FETCHER` resolves (canonical name `semantic_scholar_fetch.py`, per integration-contract §2) | Published venue papers (IEEE, ACM, Springer) with structured metadata: citation counts, venue info, TLDR. **Only runs when explicitly requested** via `— sources: semantic-scholar` or `— sources: web, semantic-scholar` |
+| 7 | **DeepXiv CLI** | `deepxiv` | `$DEEPXIV_FETCHER` resolves (canonical name `deepxiv_fetch.py`, per integration-contract §2) **and** `deepxiv` CLI present (`command -v deepxiv`) | Progressive paper retrieval: search, brief, head, section, trending, web search. **Only runs when explicitly requested** via `— sources: deepxiv` or `— sources: all, deepxiv` |
+| 8 | **Exa Search** | `exa` | `$EXA_FETCHER` resolves (canonical name `exa_search.py`, per integration-contract §2); fetcher handles `exa-py` SDK + API key internally | AI-powered broad web search with content extraction (highlights, text, summaries). Covers blogs, docs, news, companies, and research papers beyond arXiv/S2. **Only runs when explicitly requested** via `— sources: exa` or `— sources: all, exa` |
+| 9 | **Gemini** (MCP / CLI) | `gemini` | `mcp__gemini-cli__ask-gemini` tool available, or `gemini` CLI installed | AI-powered broad literature discovery — decomposes topics into sub-problems, aliases, and variants for wider retrieval. Prefers MCP, falls back to CLI. **Only runs when explicitly requested** via `— sources: gemini` or `— sources: all, gemini` |
+| 10 | **OpenAlex** | `openalex` | `$OPENALEX_FETCHER` resolves (canonical name `openalex_fetch.py`, per integration-contract §2) **and** Python `requests` module importable | Open citation graph with institutional affiliations, funding data, and comprehensive metadata across 250M+ works. Fully open API. **Only runs when explicitly requested** via `— sources: openalex` or `— sources: all, openalex` |
 
-Each source is optional. Skip missing sources silently and continue.
+> **Graceful degradation**: If no MCP servers are configured, the skill works exactly as before (local PDFs + web search). Zotero and Obsidian are pure additions.
 
-## Semantic Scholar Local Skill
+## Workflow
 
-Before generic web search, check whether a local Semantic Scholar executor exists.
+### Step 0a: Search Zotero Library (if available)
 
-Preferred lookup order:
+**Skip this step entirely if Zotero MCP is not configured.**
+
+Try calling a Zotero MCP tool (e.g., search). If it succeeds:
+
+1. **Search by topic**: Use the Zotero search tool to find papers matching the research topic
+2. **Read collections**: Check if the user has a relevant collection/folder for this topic
+3. **Extract annotations**: For highly relevant papers, pull PDF highlights and notes — these represent what the user found important
+4. **Export BibTeX**: Get citation data for relevant papers (useful for `/paper-write` later)
+5. **Compile results**: For each relevant Zotero entry, extract:
+   - Title, authors, year, venue
+   - User's annotations/highlights (if any)
+   - Tags the user assigned
+   - Which collection it belongs to
+
+> 📚 Zotero annotations are gold — they show what the user personally highlighted as important, which is far more valuable than generic summaries.
+
+### Step 0b: Search Obsidian Vault (if available)
+
+**Skip this step entirely if Obsidian MCP is not configured.**
+
+Try calling an Obsidian MCP tool (e.g., search). If it succeeds:
+
+1. **Search vault**: Search for notes related to the research topic
+2. **Check tags**: Look for notes tagged with relevant topics (e.g., `#diffusion-models`, `#paper-review`)
+3. **Read research notes**: For relevant notes, extract the user's own summaries and insights
+4. **Follow links**: If notes link to other relevant notes (wikilinks), follow them for additional context
+5. **Compile results**: For each relevant note:
+   - Note title and path
+   - User's summary/insights
+   - Links to other notes (research graph)
+   - Any frontmatter metadata (paper URL, status, rating)
+
+> 📝 Obsidian notes represent the user's **processed understanding** — more valuable than raw paper content for understanding their perspective.
+
+### Step 0c: Scan Local Paper Library
+
+Before searching online, check if the user already has relevant papers locally:
+
+1. **Locate library**: Check PAPER_LIBRARY paths for PDF files
+   ```
+   Glob: papers/**/*.pdf, literature/**/*.pdf
+   ```
+
+2. **De-duplicate against Zotero**: If Step 0a found papers, skip any local PDFs already covered by Zotero results (match by filename or title).
+
+3. **Filter by relevance**: Match filenames and first-page content against the research topic. Skip clearly unrelated papers.
+
+4. **Summarize relevant papers**: For each relevant local PDF (up to MAX_LOCAL_PAPERS):
+   - Read first 3 pages (title, abstract, intro)
+   - Extract: title, authors, year, core contribution, relevance to topic
+   - Flag papers that are directly related vs tangentially related
+
+5. **Build local knowledge base**: Compile summaries into a "papers you already have" section. This becomes the starting point — external search fills the gaps.
+
+> 📚 If no local papers are found, skip to Step 1. If the user has a comprehensive local collection, the external search can be more targeted (focus on what's missing).
+
+### Step 1: Search (external)
+- Use WebSearch to find recent papers on the topic
+- Check arXiv, Semantic Scholar, Google Scholar
+- Focus on papers from last 2 years unless studying foundational work
+- **De-duplicate**: Skip papers already found in Zotero, Obsidian, or local library
+
+**Local Semantic Scholar direct search** (runs when `— sources:` is unset, contains `semantic`, or contains `all`):
+
+Before generic WebSearch, check whether a local Semantic Scholar executor exists:
 
 ```bash
-~/.codex/skills/semantic-scholar-search/scripts/search.py
-/mnt/c/Users/MX/.codex/skills/semantic-scholar-search/scripts/search.py
+SEMANTIC_SCRIPT="$HOME/.codex/skills/semantic-scholar-search/scripts/search.py"
+[ -f "$SEMANTIC_SCRIPT" ] || SEMANTIC_SCRIPT="/mnt/c/Users/MX/.codex/skills/semantic-scholar-search/scripts/search.py"
+[ -f "$SEMANTIC_SCRIPT" ] || SEMANTIC_SCRIPT=""
 ```
 
-Use the WSL-local path first when it exists.
-
-Only fall back to the Windows-mounted path when the WSL-local copy is missing.
-
-### Important Rule
-
-Do not send the raw user topic directly into keyword extraction when the request is rich or multilingual.
-
-Instead:
-1. Read the user's request.
-2. Rewrite it into a compact English search brief.
-3. Produce 2-4 precise English query strings.
-4. Run `search.py direct` for each query.
-5. Merge and deduplicate results by `paperId`.
-
-### Search Brief Template
-
-Always write a short internal brief with:
-- topic
-- must-have concepts
-- optional concepts
-- exclusions
-- time range
-- 2-4 English query strings
-
-### Query Rules
-
-- Prefer one quoted topic phrase plus 1-3 supporting tokens.
-- Avoid dumping a bag of generic keywords.
-- Start narrow. Broaden only if recall is weak.
-
-Good:
-
-```text
-"multimodal fake news detection" +calibration +uncertainty
-```
-
-Bad:
-
-```text
-multimodal fake news detection model method analysis evaluation uncertainty calibration approach
-```
-
-### Example Command
+If found, do **not** send a rich or multilingual user topic directly into keyword extraction. First rewrite the topic into a compact English search brief, generate 2-4 precise query strings, then run direct search for each:
 
 ```bash
 python3 "$SEMANTIC_SCRIPT" direct \
@@ -168,117 +167,142 @@ python3 "$SEMANTIC_SCRIPT" direct \
   --no-save
 ```
 
-Use the printed paper metadata as structured evidence for the literature review.
+Merge and deduplicate by `paperId`. If direct mode has weak recall, optionally run one `progressive` search as a second pass. Treat this as the `semantic` source; keep it distinct from the repo's `semantic-scholar` API fetcher below.
 
-## Workflow
+**arXiv API search** (runs when `— sources:` is unset, contains `web` or `all`; no download by default — arXiv API is part of the Priority-4 Web tier, see Source Table above):
 
-### Step 0a: Search Zotero
+**Policy D2 tracking discipline (orchestrator-managed)**: the
+executor (you, the LLM) maintains an in-context list of contributing
+sources. For **helper-backed bash sources** (arxiv, semantic-scholar,
+deepxiv, exa, openalex), a source contributes iff its bash block
+ran its helper successfully (helper resolved AND invocation exited 0;
+note: the helper exiting 0 with an empty result list still counts as
+"ran" — downstream relevance ranking is what decides whether the user
+actually sees content). For **non-helper sources** (zotero / obsidian /
+local PDF / WebSearch / Gemini), the contribution rule is stated in
+the Step-1 finalization block below — these are tracked separately
+because they don't emit `D2 contribution:` log lines from bash. Sources
+that were not requested via `— sources:` do not count. At the end of
+Step 1 (before "Optional PDF download"), if zero sources contributed,
+surface a D2 empty-aggregate error and stop. (See
+integration-contract.md §2 Policy D2 — the in-context tracking
+replaces a shared bash accumulator because SKILL bash blocks are
+executed as separate shells; state does not survive.)
 
-If Zotero MCP is available:
-- search by topic
-- inspect relevant collections
-- extract annotations and notes
-- collect citation metadata
-
-These annotations are high-value signals because they reflect what the user already found important.
-
-### Step 0b: Search Obsidian
-
-If Obsidian MCP is available:
-- search notes related to the topic
-- inspect tags and linked notes
-- extract the user's summaries, critiques, and open questions
-
-### Step 0c: Scan Local PDFs
-
-- inspect `papers/**/*.pdf` and `literature/**/*.pdf`
-- de-duplicate against Zotero results
-- read the first 3 pages of the most relevant PDFs
-- record title, year, core contribution, and why it matters
-
-### Step 1: Structured External Search
-
-#### Step 1a: Semantic Scholar Local Skill
-
-If the local Semantic Scholar script exists and `sources` includes `semantic` or `all`:
-
-1. Generate an English search brief.
-2. Produce 2-4 direct query variants.
-3. Run `search.py direct` for each query.
-4. Merge and deduplicate by `paperId`.
-5. Keep the most relevant 8-15 papers.
-
-If direct mode returns weak recall, optionally run one `progressive` search as a second pass.
-
-#### Step 1b: arXiv API
-
-Try to locate `arxiv_fetch.py`:
+Resolve `$ARXIV_FETCHER` via the canonical chain (Policy D2 — this
+source contributes to the multi-source aggregate; warn-and-continue
+on failure, never abort the whole aggregate):
 
 ```bash
-SCRIPT=$(find tools/ -name "arxiv_fetch.py" 2>/dev/null | head -1)
-[ -z "$SCRIPT" ] && SCRIPT=$(find ~/.claude/skills/arxiv/ -name "arxiv_fetch.py" 2>/dev/null | head -1)
+# Canonical strict-safe resolver (see shared-references/integration-contract.md §2).
+cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" || exit 1
+if [ -z "${ARIS_REPO:-}" ] && [ -f .aris/installed-skills.txt ]; then
+    ARIS_REPO=$(awk -F'\t' '$1=="repo_root"{print $2; exit}' .aris/installed-skills.txt 2>/dev/null) || true
+fi
+ARXIV_FETCHER=".aris/tools/arxiv_fetch.py"
+[ -f "$ARXIV_FETCHER" ] || ARXIV_FETCHER="tools/arxiv_fetch.py"
+[ -f "$ARXIV_FETCHER" ] || { [ -n "${ARIS_REPO:-}" ] && ARXIV_FETCHER="$ARIS_REPO/tools/arxiv_fetch.py"; }
+[ -f "$ARXIV_FETCHER" ] || ARXIV_FETCHER=""
+
+if [ -n "$ARXIV_FETCHER" ]; then
+  # Search arXiv API for structured results (title, abstract, authors, categories).
+  # Wrap with if/then/else so set -e doesn't abort the SKILL.
+  if python3 "$ARXIV_FETCHER" search "QUERY" --max 10; then
+    echo "D2 contribution: arxiv (helper invocation exit 0)" >&2
+  else
+    echo "WARN: arxiv_fetch.py invocation failed; D2 aggregate continues with WebSearch results." >&2
+  fi
+else
+  echo "WARN: arxiv_fetch.py not resolved; falling back to WebSearch for arXiv hits." >&2
+fi
 ```
 
-If found:
+> **Record-keeping**: track the `D2 contribution: …` lines emitted by
+> each source's bash block. They form the contributing-source list
+> the orchestrator uses for the Step-1 finalization gate below.
+> WebSearch (Priority 4) is treated as having contributed iff
+> WebSearch was requested (no `— sources:` filter, or the list
+> contains `web` or `all`) AND was actually invoked; the orchestrator
+> records that separately. (The finalization block below restates
+> this rule canonically — both lines must stay in sync.)
+
+If `$ARXIV_FETCHER` is empty (D2 graceful degradation), fall back to WebSearch for arXiv (same as before).
+
+The arXiv API returns structured metadata (title, abstract, full author list, categories, dates) — richer than WebSearch snippets. Merge these results with WebSearch findings and de-duplicate.
+
+**Semantic Scholar API search** (only when `semantic-scholar` is in sources):
+
+When the user explicitly requests `— sources: semantic-scholar` (or `— sources: web, semantic-scholar`), search for published venue papers beyond arXiv:
 
 ```bash
-python3 "$SCRIPT" search "QUERY" --max 10
+# Re-resolve $ARIS_REPO (SKILL bash blocks may run in separate shells).
+cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" || exit 1
+if [ -z "${ARIS_REPO:-}" ] && [ -f .aris/installed-skills.txt ]; then
+    ARIS_REPO=$(awk -F'\t' '$1=="repo_root"{print $2; exit}' .aris/installed-skills.txt 2>/dev/null) || true
+fi
+# Resolve $S2_FETCHER (Policy D2 — warn-and-skip on missing).
+S2_FETCHER=".aris/tools/semantic_scholar_fetch.py"
+[ -f "$S2_FETCHER" ] || S2_FETCHER="tools/semantic_scholar_fetch.py"
+[ -f "$S2_FETCHER" ] || { [ -n "${ARIS_REPO:-}" ] && S2_FETCHER="$ARIS_REPO/tools/semantic_scholar_fetch.py"; }
+[ -f "$S2_FETCHER" ] || S2_FETCHER=""
+
+if [ -n "$S2_FETCHER" ]; then
+  # Search for published CS/Engineering papers with quality filters.
+  # Wrap with if/then/else so set -e doesn't abort the SKILL.
+  if python3 "$S2_FETCHER" search "QUERY" --max 10 \
+      --fields-of-study "Computer Science,Engineering" \
+      --publication-types "JournalArticle,Conference"; then
+    echo "D2 contribution: semantic_scholar (helper invocation exit 0)" >&2
+  else
+    echo "WARN: semantic_scholar_fetch.py invocation failed; D2 aggregate continues with remaining sources." >&2
+  fi
+fi
 ```
 
-Use arXiv for high-recall preprint discovery and recent work.
+If `$S2_FETCHER` is empty (canonical chain exhausted), skip silently — D2 multi-source aggregate continues with the remaining resolved sources.
 
-If `ARXIV_DOWNLOAD = true`, download only the top relevant papers not already in the local library.
+**Why use Semantic Scholar?** Many IEEE/ACM journal papers are NOT on arXiv. S2 fills the gap for published venue-only papers with citation counts and venue metadata.
 
-#### Step 1c: Semantic Scholar API Search
+**De-duplication between arXiv and S2**: Match by arXiv ID (S2 returns `externalIds.ArXiv`):
+- If a paper appears in both: check S2's `venue`/`publicationVenue` — if it has been published in a journal/conference (e.g. IEEE TWC, JSAC), use S2's metadata (venue, citationCount, DOI) as the authoritative version, since the published version supersedes the preprint. Keep the arXiv PDF link for download.
+- If the S2 match has no venue (still just a preprint indexed by S2): keep the arXiv version as-is.
+- S2 results without `externalIds.ArXiv` are **venue-only papers** not on arXiv — these are the unique value of this source.
 
-If `sources` explicitly includes `semantic-scholar`, search the repo's Semantic Scholar API path for published venue papers beyond arXiv:
+**DeepXiv search** (only when `deepxiv` is in sources):
+
+When the user explicitly requests `— sources: deepxiv` (or includes `deepxiv` in a combined source list), use the DeepXiv adapter for progressive retrieval:
 
 ```bash
-S2_SCRIPT=$(find tools/ -name "semantic_scholar_fetch.py" 2>/dev/null | head -1)
-[ -z "$S2_SCRIPT" ] && S2_SCRIPT=$(find ~/.claude/skills/semantic-scholar/ -name "semantic_scholar_fetch.py" 2>/dev/null | head -1)
+# Re-resolve $ARIS_REPO (SKILL bash blocks may run in separate shells).
+cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" || exit 1
+if [ -z "${ARIS_REPO:-}" ] && [ -f .aris/installed-skills.txt ]; then
+    ARIS_REPO=$(awk -F'\t' '$1=="repo_root"{print $2; exit}' .aris/installed-skills.txt 2>/dev/null) || true
+fi
+# Resolve $DEEPXIV_FETCHER (Policy D2 — warn-and-skip on missing).
+DEEPXIV_FETCHER=".aris/tools/deepxiv_fetch.py"
+[ -f "$DEEPXIV_FETCHER" ] || DEEPXIV_FETCHER="tools/deepxiv_fetch.py"
+[ -f "$DEEPXIV_FETCHER" ] || { [ -n "${ARIS_REPO:-}" ] && DEEPXIV_FETCHER="$ARIS_REPO/tools/deepxiv_fetch.py"; }
+[ -f "$DEEPXIV_FETCHER" ] || DEEPXIV_FETCHER=""
 
-python3 "$S2_SCRIPT" search "QUERY" --max 10 \
-  --fields-of-study "Computer Science,Engineering" \
-  --publication-types "JournalArticle,Conference"
+if [ -n "$DEEPXIV_FETCHER" ] && command -v deepxiv >/dev/null 2>&1; then
+  # Wrap each adapter call so set -e doesn't abort the SKILL.
+  if python3 "$DEEPXIV_FETCHER" search "QUERY" --max 10; then
+    echo "D2 contribution: deepxiv (helper invocation exit 0)" >&2
+
+    # Then deepen only for the most relevant papers (sub-calls don't change D2 aggregate count):
+    python3 "$DEEPXIV_FETCHER" paper-brief ARXIV_ID \
+      || echo "WARN: deepxiv_fetch.py paper-brief failed; skipping deepen step." >&2
+    python3 "$DEEPXIV_FETCHER" paper-head ARXIV_ID \
+      || echo "WARN: deepxiv_fetch.py paper-head failed; skipping deepen step." >&2
+    python3 "$DEEPXIV_FETCHER" paper-section ARXIV_ID "Experiments" \
+      || echo "WARN: deepxiv_fetch.py paper-section failed; skipping deepen step." >&2
+  else
+    echo "WARN: deepxiv_fetch.py search invocation failed; D2 aggregate continues with remaining sources." >&2
+  fi
+fi
 ```
 
-If `semantic_scholar_fetch.py` is not found, skip silently.
-
-Use this source when you specifically want:
-- IEEE / ACM / Springer papers not mirrored on arXiv
-- citation counts and venue metadata
-- DOI and publication venue disambiguation
-
-De-duplicate against arXiv by `externalIds.ArXiv` when present:
-- if the S2 result has a real publication venue, prefer its venue metadata
-- if it is only a mirrored preprint, keep the arXiv version as primary
-- S2 entries without arXiv IDs are usually the unique venue-only hits
-
-#### Step 1d: Web Search Fallback
-
-Use WebSearch and WebFetch to cover:
-- project pages
-- Google Scholar snippets
-- venue pages
-- papers missed by Semantic Scholar and arXiv
-
-Do not rely on generic web search alone if the local Semantic Scholar skill is available.
-
-#### Step 1e: DeepXiv Search
-
-```bash
-python3 tools/deepxiv_fetch.py search "QUERY" --max 10
-```
-
-Then deepen only for the most relevant papers:
-
-```bash
-python3 tools/deepxiv_fetch.py paper-brief ARXIV_ID
-python3 tools/deepxiv_fetch.py paper-head ARXIV_ID
-python3 tools/deepxiv_fetch.py paper-section ARXIV_ID "Experiments"
-```
-
-If `tools/deepxiv_fetch.py` or the `deepxiv` CLI is unavailable, skip this source gracefully and continue with the remaining requested sources.
+If `$DEEPXIV_FETCHER` is empty or the `deepxiv` CLI is unavailable, skip this source gracefully and continue with the remaining requested sources (Policy D2 graceful degradation).
 
 **Why use DeepXiv?** It is useful when a broad search should be followed by staged reading rather than immediate full-paper loading. This reduces unnecessary context while still surfacing structure, TLDRs, and the most relevant sections.
 
@@ -292,16 +316,37 @@ If `tools/deepxiv_fetch.py` or the `deepxiv` CLI is unavailable, skip this sourc
 When the user explicitly requests `— sources: exa` (or includes `exa` in a combined source list), use the Exa tool for broad AI-powered web search with content extraction:
 
 ```bash
-EXA_SCRIPT=$(find tools/ -name "exa_search.py" 2>/dev/null | head -1)
+# Re-resolve $ARIS_REPO (SKILL bash blocks may run in separate shells).
+cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" || exit 1
+if [ -z "${ARIS_REPO:-}" ] && [ -f .aris/installed-skills.txt ]; then
+    ARIS_REPO=$(awk -F'\t' '$1=="repo_root"{print $2; exit}' .aris/installed-skills.txt 2>/dev/null) || true
+fi
+# Resolve $EXA_FETCHER (Policy D2 — warn-and-skip on missing).
+EXA_FETCHER=".aris/tools/exa_search.py"
+[ -f "$EXA_FETCHER" ] || EXA_FETCHER="tools/exa_search.py"
+[ -f "$EXA_FETCHER" ] || { [ -n "${ARIS_REPO:-}" ] && EXA_FETCHER="$ARIS_REPO/tools/exa_search.py"; }
+[ -f "$EXA_FETCHER" ] || EXA_FETCHER=""
 
-# Search for research papers with highlights
-python3 "$EXA_SCRIPT" search "QUERY" --max 10 --category "research paper" --content highlights
-
-# Search for broader web content (blogs, docs, news)
-python3 "$EXA_SCRIPT" search "QUERY" --max 10 --content highlights
+if [ -n "$EXA_FETCHER" ]; then
+  # Search for research papers with highlights.
+  # Wrap with if/then/else so set -e doesn't abort the SKILL.
+  exa_contributed=false
+  if python3 "$EXA_FETCHER" search "QUERY" --max 10 --category "research paper" --content highlights; then
+    exa_contributed=true
+  else
+    echo "WARN: exa_search.py research-paper invocation failed; D2 aggregate continues." >&2
+  fi
+  # Search for broader web content (blogs, docs, news)
+  if python3 "$EXA_FETCHER" search "QUERY" --max 10 --content highlights; then
+    exa_contributed=true
+  else
+    echo "WARN: exa_search.py broad-web invocation failed; D2 aggregate continues." >&2
+  fi
+  [ "$exa_contributed" = "true" ] && echo "D2 contribution: exa (at least one invocation exit 0)" >&2
+fi
 ```
 
-If `tools/exa_search.py` or the `exa-py` SDK is unavailable, skip this source gracefully and continue with the remaining requested sources.
+If `$EXA_FETCHER` is empty or the `exa-py` SDK is unavailable, skip this source gracefully and continue with the remaining requested sources (Policy D2 graceful degradation).
 
 **Why use Exa?** Exa provides AI-powered search across the broader web (blogs, documentation, news, company pages) with built-in content extraction. It fills a gap between academic databases (arXiv, S2) and generic WebSearch by returning richer content with each result.
 
@@ -337,7 +382,7 @@ For EACH paper found, provide ALL of the following:
 - Summary: [one-sentence core contribution]
 
 Find at least 15 papers.',
-  model: 'gemini-2.5-pro'
+  model: 'auto-gemini-3'
 })
 ```
 
@@ -359,20 +404,34 @@ If both MCP and CLI are unavailable, skip this source gracefully and continue wi
 When the user explicitly requests `— sources: openalex` (or includes `openalex` in a combined source list), use OpenAlex API for comprehensive academic metadata:
 
 ```bash
-OA_SCRIPT=$(find tools/ -name "openalex_fetch.py" 2>/dev/null | head -1)
+# Re-resolve $ARIS_REPO (SKILL bash blocks may run in separate shells).
+cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" || exit 1
+if [ -z "${ARIS_REPO:-}" ] && [ -f .aris/installed-skills.txt ]; then
+    ARIS_REPO=$(awk -F'\t' '$1=="repo_root"{print $2; exit}' .aris/installed-skills.txt 2>/dev/null) || true
+fi
+# Resolve $OPENALEX_FETCHER (Policy D2 — warn-and-skip on missing).
+OPENALEX_FETCHER=".aris/tools/openalex_fetch.py"
+[ -f "$OPENALEX_FETCHER" ] || OPENALEX_FETCHER="tools/openalex_fetch.py"
+[ -f "$OPENALEX_FETCHER" ] || { [ -n "${ARIS_REPO:-}" ] && OPENALEX_FETCHER="$ARIS_REPO/tools/openalex_fetch.py"; }
+[ -f "$OPENALEX_FETCHER" ] || OPENALEX_FETCHER=""
 
-# Preflight: skip OpenAlex silently if either openalex_fetch.py or the
-# `requests` Python package is unavailable. Both checks must pass before
+# Preflight: skip OpenAlex silently if the helper is unresolved OR the
+# `requests` Python package is missing. Both checks must pass before
 # the script is invoked, so users without `requests` installed never see
 # a stack trace from a default `/research-lit` run.
-if [ -z "$OA_SCRIPT" ] || ! python3 -c "import requests" >/dev/null 2>&1; then
-  echo "OpenAlex source not available (missing tools/openalex_fetch.py or 'requests' module); skipping." >&2
+if [ -z "$OPENALEX_FETCHER" ] || ! python3 -c "import requests" >/dev/null 2>&1; then
+  echo "OpenAlex source not available (openalex_fetch.py unresolved or 'requests' module missing); skipping." >&2
 else
-  # Search for papers with comprehensive metadata
-  python3 "$OA_SCRIPT" search "QUERY" --max 10 \
-    --year "2022-" \
-    --type article \
-    --sort relevance
+  # Search for papers with comprehensive metadata.
+  # Wrap with if/then/else so set -e doesn't abort the SKILL.
+  if python3 "$OPENALEX_FETCHER" search "QUERY" --max 10 \
+      --year "2022-" \
+      --type article \
+      --sort relevance; then
+    echo "D2 contribution: openalex (helper invocation exit 0)" >&2
+  else
+    echo "WARN: openalex_fetch.py invocation failed; D2 aggregate continues with remaining sources." >&2
+  fi
 fi
 ```
 
@@ -390,63 +449,238 @@ If `openalex_fetch.py` is not found or `requests` module is missing, skip this s
 - If OpenAlex and arXiv overlap, prefer arXiv's PDF link and metadata, but keep OpenAlex's citation/institution data
 - OpenAlex's unique value: institutional affiliations, funding sources, comprehensive topic classification, and cross-discipline coverage
 
+**D2 aggregate finalization** (per integration-contract §2 Policy D2):
+
+The orchestrator (you, the LLM) maintains an in-context list of
+contributing sources by reading the `D2 contribution: <name>` log
+lines emitted by each source's bash block above, plus:
+
+- `zotero` if Step 0a returned non-empty Zotero hits.
+- `obsidian` if Step 0b returned non-empty Obsidian hits.
+- `local` if Step 0c found at least one relevant local PDF.
+- `web` if WebSearch (Priority 4) was requested (either no `— sources:`
+  filter, or the list contains `web` or `all`) AND was actually invoked.
+  Note: `— sources: all` covers the default-on tier (zotero, obsidian,
+  local, web) — it does **NOT** include the opt-in fetchers
+  (semantic-scholar, deepxiv, exa, gemini, openalex). To enable those,
+  add them explicitly (e.g. `— sources: all, semantic-scholar, openalex`),
+  matching the existing convention at L42-43 / L51-63 of this SKILL.
+- `gemini` if Gemini MCP / CLI returned at least one paper.
+
+If the resulting contributing-source list has zero entries, surface:
+
+> **ERROR**: D2 aggregate empty — every requested source either was
+> unresolved, not invoked, failed, or (for MCP / local PDF / Gemini
+> sources) returned no usable result. (Note: WebSearch contributes
+> when requested and invoked, even if the result set is empty.) The
+> multi-source aggregate cannot proceed. Suggest the user retry with
+> a wider `— sources:` list (e.g. `web, local`) or check helper
+> resolution and SDK installation.
+
+Then stop before Step 1.5. Otherwise log the contributing-source
+list to the user (e.g. "Sources contributed: arxiv, semantic_scholar,
+web") and proceed.
+
 **Optional PDF download** (only when `ARXIV_DOWNLOAD = true`):
 
 After all sources are searched and papers are ranked by relevance:
 ```bash
-# Download top N most relevant arXiv papers
-python3 "$SCRIPT" download ARXIV_ID --dir papers/
+# Re-resolve $ARXIV_FETCHER (SKILL bash blocks may run in separate shells).
+cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" || exit 1
+if [ -z "${ARIS_REPO:-}" ] && [ -f .aris/installed-skills.txt ]; then
+    ARIS_REPO=$(awk -F'\t' '$1=="repo_root"{print $2; exit}' .aris/installed-skills.txt 2>/dev/null) || true
+fi
+ARXIV_FETCHER=".aris/tools/arxiv_fetch.py"
+[ -f "$ARXIV_FETCHER" ] || ARXIV_FETCHER="tools/arxiv_fetch.py"
+[ -f "$ARXIV_FETCHER" ] || { [ -n "${ARIS_REPO:-}" ] && ARXIV_FETCHER="$ARIS_REPO/tools/arxiv_fetch.py"; }
+[ -f "$ARXIV_FETCHER" ] || ARXIV_FETCHER=""
+
+# Download top N most relevant arXiv papers; skip silently if helper unresolved.
+[ -n "$ARXIV_FETCHER" ] && python3 "$ARXIV_FETCHER" download ARXIV_ID --dir papers/
 ```
 - Only download papers ranked in the top ARXIV_MAX_DOWNLOAD by relevance
 - Skip papers already in the local library
 - 1-second delay between downloads (rate limiting)
 - Verify each PDF > 10 KB
 
+### Step 1.5: Verify Candidate Papers (anti-hallucination, mandatory)
+
+Before analysis, run pre-search verification on **all** candidate papers
+collected from Steps 0a-1 to filter out LLM-fabricated arXiv IDs / DOIs /
+titles. Helper: `verify_papers.py` (canonical name; resolved per
+[`shared-references/integration-contract.md`](../shared-references/integration-contract.md) §2,
+Policy D1 — primary helper with degraded-output fallback). If the
+helper is unresolved on this machine, the SKILL emits a fallback
+`verified_papers.json` tagging every candidate `[UNVERIFIED]` so
+downstream analysis proceeds with audit-visible degraded output
+rather than silently dropping candidates.
+
+```bash
+# 1. Resolve $VERIFY_PAPERS via the canonical strict-safe chain (§2).
+cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" || exit 1
+if [ -z "${ARIS_REPO:-}" ] && [ -f .aris/installed-skills.txt ]; then
+    ARIS_REPO=$(awk -F'\t' '$1=="repo_root"{print $2; exit}' .aris/installed-skills.txt 2>/dev/null) || true
+fi
+VERIFY_PAPERS=".aris/tools/verify_papers.py"
+[ -f "$VERIFY_PAPERS" ] || VERIFY_PAPERS="tools/verify_papers.py"
+[ -f "$VERIFY_PAPERS" ] || { [ -n "${ARIS_REPO:-}" ] && VERIFY_PAPERS="$ARIS_REPO/tools/verify_papers.py"; }
+[ -f "$VERIFY_PAPERS" ] || VERIFY_PAPERS=""
+
+# 2. Emit candidates as JSON. Verification scratch lives under .aris/
+#    (NOT under research-wiki/ — Step 6's wiki ingest predicate is
+#    "research-wiki/ exists", and we must not trip it from Step 1.5).
+mkdir -p .aris/verify-papers
+cat > .aris/verify-papers/candidate_papers.json <<'JSON'
+[
+  {"id": "p1", "arxiv_id": "2307.03172", "doi": null, "title": "Lost in the Middle"},
+  {"id": "p2", "arxiv_id": null, "doi": "10.1145/...", "title": "..."},
+  {"id": "p3", "arxiv_id": null, "doi": null, "title": "Some Paper Title"}
+]
+JSON
+
+# 3. Run 3-layer verification (arXiv batch → CrossRef → Semantic Scholar fuzzy).
+#    Policy D1: when the helper is unresolved OR its invocation fails, emit
+#    a degraded verified set tagging everything [UNVERIFIED] so the user
+#    can audit search quality. If python3 itself is missing, we BLOCK
+#    rather than hand-roll JSON in shell.
+verify_ok=false
+if [ -n "$VERIFY_PAPERS" ]; then
+  if python3 "$VERIFY_PAPERS" \
+        --input  .aris/verify-papers/candidate_papers.json \
+        --output .aris/verify-papers/verified_papers.json; then
+    verify_ok=true
+  else
+    echo "WARN: verify_papers.py invocation failed (resolved at $VERIFY_PAPERS); falling back to [UNVERIFIED] tagging." >&2
+  fi
+else
+  echo "WARN: verify_papers.py not resolved at .aris/tools/, tools/, or \$ARIS_REPO/tools/." >&2
+  echo "      Fix: rerun bash tools/install_aris.sh, export ARIS_REPO, or copy the helper to tools/." >&2
+fi
+if [ "$verify_ok" = "false" ]; then
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "ERROR: python3 unavailable; cannot emit fallback verified_papers.json." >&2
+    echo "       Status: BLOCKED. Install python3 or restore the helper to proceed." >&2
+    exit 1
+  fi
+  echo "      Emitting unverified candidate set with [UNVERIFIED] tags." >&2
+  python3 - <<'PY'
+import json
+cands = json.load(open('.aris/verify-papers/candidate_papers.json'))
+out = {
+  'verdict': 'WARN',
+  'reason_code': 'verify_papers_unavailable',
+  'summary': 'verify_papers.py helper unresolved or invocation failed; all candidates tagged [UNVERIFIED] for audit visibility.',
+  'papers': [dict(p, status='unverified', method='none') for p in cands],
+}
+with open('.aris/verify-papers/verified_papers.json', 'w') as f:
+  json.dump(out, f, indent=2)
+PY
+fi
+
+# 4. Read verdict + per-paper status from .aris/verify-papers/verified_papers.json;
+#    surface warnings to the user.
+```
+
+**Mandatory output rules** (see
+[`shared-references/citation-discipline.md`](../shared-references/citation-discipline.md)
+§ Pre-Search Verification Protocol for the full contract):
+
+- Tag every paper in the analyzed list with its status: `✅ verified (via
+  arxiv|crossref|s2)` or `⚠️ UNVERIFIED (reason)` or `… verify_pending`.
+- **Never silently drop unverified papers** — keep them in the output with the
+  `[UNVERIFIED]` marker so the user can audit the search quality.
+- Never fabricate a DOI or arXiv ID from memory. If a field is unknown, leave
+  it `null` in `candidate_papers.json` — the helper will fall through to title
+  search.
+- If the helper returns `WARN` with `high_hallucination_rate`, surface the
+  warning verbatim and recommend re-running with narrower queries.
+- For papers tagged `verify_pending`, do not promote them to `verified` —
+  show the pending state to the user and retry on the next session.
+
+Optional: set `ARIS_VERIFY_EMAIL=you@institution.edu` in your shell to lift
+CrossRef rate limits to the polite pool.
+
 ### Step 2: Analyze Each Paper
 
-For each relevant paper, extract:
-- problem
-- method
-- key result
-- relevance to our work
-- source
+> **Fan-out (Tier-aware).** Per-paper extraction is pure breadth — each paper
+> is independent — so it parallelizes cleanly. **Tier 1** (Workflow): spawn
+> one Claude subagent per paper (or per small batch) to extract the fields
+> below. **Tier 2** (Agent tool, no Workflow): the same per-paper subagents
+> via the Agent tool. **Tier 3**: iterate sequentially. This follows the
+> *extraction* shard schema from
+> [`shared-references/fan-out-pattern.md`](../shared-references/fan-out-pattern.md)
+> — `{shard_id: "<paper-or-batch id>", entries: [{dedup_key: "<canonical
+> arXiv-id / DOI / title-hash, already assigned upstream in Step 1.5>",
+> problem, method, results, relevance, source, verification_status}]}`.
+>
+> The "jury" here is **not a model** — it is the **deterministic**
+> `verify_papers.py` gate already run in Step 1.5 (3-layer arXiv / CrossRef /
+> Semantic Scholar cross-check). Because the acceptance gate is a deterministic
+> verifier, not a model verdict, the cross-model-family rule is automatically
+> satisfied (a process is not a model family — see
+> [`acceptance-gate.md`](../shared-references/acceptance-gate.md)), so this is
+> the **near-zero-risk** corner of the fan-out design space. The per-paper work
+> is **extraction, not adjudication**: shards report what each paper says and
+> its verification status verbatim; they do **not** decide which papers
+> "count" (Step 1.5 already did, mechanically) and they do **not** drop a paper
+> for any status other than `verified`. Synthesis (Step 3) is *interpretive*
+> aggregation — grouping by theme, spotting gaps our work could fill — over an
+> already-admitted set; it is the executor's normal job, NOT an accept/reject
+> verdict on whether a paper *counts*. The cross-model-family rule governs
+> admission verdicts, and here admission is the deterministic Step-1.5 gate, so
+> the invariant is satisfied without a model jury.
+
+For **every** paper in `.aris/verify-papers/verified_papers.json`
+(verified, unverified, `verify_pending`, and `error` alike — see
+Retention rule above), extract:
+- **Problem**: What gap does it address?
+- **Method**: Core technical contribution (1-2 sentences)
+- **Results**: Key numbers/claims
+- **Relevance**: How does it relate to our work?
+- **Source**: Where we found it (Zotero/Obsidian/local/web) — helps user know what they already have vs what's new
+- **Verification status** (one of):
+  - `✅ verified (via arxiv|crossref|s2)`
+  - `⚠️ UNVERIFIED (verification unavailable: helper unresolved or invocation failed)`
+  - `⚠️ UNVERIFIED (searched: not found in any source)`
+  - `… VERIFY_PENDING (transient API failure — retry next session)`
+  - `❌ ERROR (malformed input: no arxiv, no DOI, no title)`
+
+  Show the status in the analyzed table — never silently drop a
+  paper because its status is anything other than `verified`.
 
 ### Step 3: Synthesize
-
-Group papers by:
-- approach
-- benchmark or task
-- evaluation philosophy
-- major disagreement or limitation
-
-Explicitly identify:
-- what is already well covered
-- what remains missing
-- what claims would be hard to defend given the current literature
+- Group papers by approach/theme
+- Identify consensus vs disagreements in the field
+- Find gaps that our work could fill
+- If Obsidian notes exist, incorporate the user's own insights into the synthesis
 
 ### Step 4: Output
+Present as a structured literature table:
 
-Always produce a structured table:
-
-```text
+```
 | Paper | Venue | Method | Key Result | Relevance to Us | Source |
 |-------|-------|--------|------------|-----------------|--------|
 ```
 
-Then add a short narrative synthesis in 3-5 paragraphs:
-- landscape overview
-- dominant clusters of work
-- unresolved gaps
-- concrete implications for the user's project
+Plus a narrative summary of the landscape (3-5 paragraphs).
 
-If BibTeX is available from Zotero, include a short `references.bib` snippet.
+If Zotero BibTeX was exported, include a `references.bib` snippet for direct use in paper writing.
 
-### Step 5: Save if Requested
+### Step 5: Save (if requested)
+- Save paper PDFs to `literature/` or `papers/`
+- Update related work notes in project memory
+- If Obsidian is available, optionally create a literature review note in the vault
 
-Optionally:
-- save downloaded PDFs into `papers/` or `literature/`
-- write notes into project memory
-- create or update an Obsidian literature note when available
+> **Composed mode** — if invoked with `— composed: <canonical-report-path>` (an
+> orchestrator like `/idea-discovery` passes this), do **not** write a standalone
+> landscape `.md`. Return the structured table + narrative summary for the orchestrator
+> to fold into its canonical report as a "Literature Landscape" section; the report
+> links any saved PDFs/`references.bib`, it does not get a duplicate landscape file.
+> Step 6 (research-wiki ingest) still runs — the wiki is a separate persistent store,
+> not a duplicate of the report. **Default (no `— composed:` directive): behave exactly
+> as above — standalone, write files as documented.** Never infer composed mode from a
+> report file merely existing on disk. Full rules:
+> [`shared-references/output-composition.md`](../shared-references/output-composition.md).
 
 ### Step 6: Update Research Wiki
 
@@ -510,11 +744,9 @@ python3 "$WIKI_SCRIPT" ingest_paper research-wiki/ \
 ```
 
 ## Key Rules
-
-- Always include authors, year, and venue when available.
-- Distinguish peer-reviewed papers from preprints.
-- De-duplicate aggressively across all sources.
-- Prefer precise structured search over broad keyword stuffing.
-- When the local Semantic Scholar skill is available, use `direct` mode first.
-- Use raw keyword extraction only as fallback or debugging.
-- Never fail because a source is missing; continue with the remaining sources.
+- Always include paper citations (authors, year, venue)
+- Distinguish between peer-reviewed and preprints
+- Be honest about limitations of each paper
+- Note if a paper directly competes with or supports our approach
+- **Never fail because a MCP server is not configured** — always fall back gracefully to the next data source
+- Zotero/Obsidian tools may have different names depending on how the user configured the MCP server (e.g., `mcp__zotero__search` or `mcp__zotero-mcp__search_items`). Try the most common patterns and adapt.

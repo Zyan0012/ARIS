@@ -71,6 +71,19 @@ class TestClampTemperature(unittest.TestCase):
         from tests._minimax_helpers import clamp_temperature
         self.assertAlmostEqual(clamp_temperature(0.001), 0.001)
 
+    def test_clamp_non_numeric_raises_valueerror(self):
+        """Non-numeric input should raise ValueError with a clear message
+        (caller surfaces it as 'Invalid temperature: ...' instead of letting
+        a raw float() error bubble through JSON-RPC)."""
+        from tests._minimax_helpers import clamp_temperature
+        with self.assertRaises(ValueError) as ctx:
+            clamp_temperature("not a number")
+        self.assertIn("Invalid temperature", str(ctx.exception))
+        with self.assertRaises(ValueError):
+            clamp_temperature([])
+        with self.assertRaises(ValueError):
+            clamp_temperature({"oops": True})
+
 
 class TestDefaultConfig(unittest.TestCase):
     """Test default configuration values."""
@@ -83,10 +96,10 @@ class TestDefaultConfig(unittest.TestCase):
         )
 
     def test_default_model(self):
-        """Default model should be MiniMax-M2.7."""
+        """Default model should be MiniMax-M3."""
         self.assertEqual(
-            os.environ.get("MINIMAX_MODEL", "MiniMax-M2.7"),
-            "MiniMax-M2.7"
+            os.environ.get("MINIMAX_MODEL", "MiniMax-M3"),
+            "MiniMax-M3"
         )
 
 
@@ -113,21 +126,27 @@ class TestHandleRequest(unittest.TestCase):
         self.assertEqual(response["result"], {})
 
     def test_tools_list_response(self):
-        """tools/list should return minimax_chat tool with M2.7 default."""
+        """tools/list should return minimax_chat tool with M3 default."""
         from tests._minimax_helpers import handle_request
         request = {"jsonrpc": "2.0", "id": 3, "method": "tools/list", "params": {}}
         response = handle_request(request)
         tools = response["result"]["tools"]
         self.assertEqual(len(tools), 1)
         self.assertEqual(tools[0]["name"], "minimax_chat")
+        self.assertIn("MiniMax-M3", tools[0]["description"])
         self.assertIn("MiniMax-M2.7", tools[0]["description"])
         self.assertIn("MiniMax-M2.7-highspeed", tools[0]["description"])
-        # Check model enum includes all variants
+        # Check model enum includes all supported variants
         model_schema = tools[0]["inputSchema"]["properties"]["model"]
+        self.assertIn("MiniMax-M3", model_schema["enum"])
         self.assertIn("MiniMax-M2.7", model_schema["enum"])
         self.assertIn("MiniMax-M2.7-highspeed", model_schema["enum"])
-        self.assertIn("MiniMax-M2.5", model_schema["enum"])
-        self.assertIn("MiniMax-M2.5-highspeed", model_schema["enum"])
+        # Older M2.5 variants are removed
+        self.assertNotIn("MiniMax-M2.5", model_schema["enum"])
+        self.assertNotIn("MiniMax-M2.5-highspeed", model_schema["enum"])
+        # M3 should be the default and listed first
+        self.assertEqual(model_schema["default"], "MiniMax-M3")
+        self.assertEqual(model_schema["enum"][0], "MiniMax-M3")
         # Check temperature parameter exists
         self.assertIn("temperature", tools[0]["inputSchema"]["properties"])
 
@@ -283,6 +302,33 @@ class TestCallMinimax(unittest.TestCase):
 
     @patch('tests._minimax_helpers.MINIMAX_API_KEY', 'test-key')
     @patch('httpx.Client')
+    def test_malformed_response_returns_clear_error(self, mock_client_cls):
+        """Missing or empty choices in API response should return a clear
+        error message instead of crashing with KeyError/IndexError."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        # Various malformed shapes
+        for bad_body, expected_in_error in [
+            ({"choices": []}, "Unexpected API response structure"),
+            ({"choices": [{}]}, "Unexpected API response structure"),
+            ({"choices": [{"message": {}}]}, "Unexpected API response structure"),
+            ({}, "Unexpected API response structure"),
+        ]:
+            mock_response.json.return_value = bad_body
+            mock_client = MagicMock()
+            mock_client.__enter__ = MagicMock(return_value=mock_client)
+            mock_client.__exit__ = MagicMock(return_value=False)
+            mock_client.post.return_value = mock_response
+            mock_client_cls.return_value = mock_client
+
+            from tests._minimax_helpers import call_minimax
+            content, error = call_minimax([{"role": "user", "content": "test"}])
+            self.assertIsNone(content, f"Expected None content for {bad_body!r}, got {content!r}")
+            self.assertIsNotNone(error)
+            self.assertIn(expected_in_error, error)
+
+    @patch('tests._minimax_helpers.MINIMAX_API_KEY', 'test-key')
+    @patch('httpx.Client')
     def test_temperature_clamping_in_call(self, mock_client_cls):
         """Temperature should be clamped in API call."""
         mock_response = MagicMock()
@@ -335,6 +381,30 @@ class TestModelSupport(unittest.TestCase):
 
     @patch('tests._minimax_helpers.MINIMAX_API_KEY', 'test-key')
     @patch('httpx.Client')
+    def test_m3_model(self, mock_client_cls):
+        """M3 model should be accepted."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": "OK"}}]
+        }
+        mock_client = MagicMock()
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client.post.return_value = mock_response
+        mock_client_cls.return_value = mock_client
+
+        from tests._minimax_helpers import call_minimax
+        content, error = call_minimax(
+            [{"role": "user", "content": "test"}],
+            model="MiniMax-M3"
+        )
+        self.assertEqual(content, "OK")
+        payload = mock_client.post.call_args[1]["json"]
+        self.assertEqual(payload["model"], "MiniMax-M3")
+
+    @patch('tests._minimax_helpers.MINIMAX_API_KEY', 'test-key')
+    @patch('httpx.Client')
     def test_m27_model(self, mock_client_cls):
         """M2.7 model should be accepted."""
         mock_response = MagicMock()
@@ -383,8 +453,8 @@ class TestModelSupport(unittest.TestCase):
 
     @patch('tests._minimax_helpers.MINIMAX_API_KEY', 'test-key')
     @patch('httpx.Client')
-    def test_default_model_is_m27(self, mock_client_cls):
-        """Default model should be MiniMax-M2.7."""
+    def test_default_model_is_m3(self, mock_client_cls):
+        """Default model should be MiniMax-M3."""
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -397,10 +467,10 @@ class TestModelSupport(unittest.TestCase):
         mock_client_cls.return_value = mock_client
 
         from tests._minimax_helpers import call_minimax, DEFAULT_MODEL
-        self.assertEqual(DEFAULT_MODEL, "MiniMax-M2.7")
+        self.assertEqual(DEFAULT_MODEL, "MiniMax-M3")
         content, error = call_minimax([{"role": "user", "content": "test"}])
         payload = mock_client.post.call_args[1]["json"]
-        self.assertEqual(payload["model"], "MiniMax-M2.7")
+        self.assertEqual(payload["model"], "MiniMax-M3")
 
 
 if __name__ == "__main__":

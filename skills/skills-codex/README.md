@@ -4,7 +4,7 @@ Codex-native mirror and adaptation layer for the main ARIS `skills/` package.
 
 ## Scope
 
-- Base mirror coverage: all `67` mainline skills under `skills/`
+- Base mirror coverage: all `79` mainline skills under `skills/`
 - Support directory: `shared-references/`
 - Default reviewer contract for reviewer-heavy skills:
   - round 1: `spawn_agent`
@@ -93,7 +93,7 @@ The following Codex skills must not silently degrade when their required capabil
 
 - `comm-lit-review`
 - `research-lit`
-- `paper-poster`
+- `paper-poster-html`
 - `pixel-art`
 
 If the required source, reviewer, or local preview capability is unavailable, the skill should stop and tell the user what to configure.

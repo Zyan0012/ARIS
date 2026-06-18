@@ -24,7 +24,11 @@ Use Exa when you need results beyond academic databases, or when you want conten
 
 ## Constants
 
-- **FETCH_SCRIPT** — `$ARIS_REPO/tools/exa_search.py` from the ARIS repo recorded by the Codex install manifest.
+- **EXA_FETCHER** — canonical name `exa_search.py`, resolved per
+  [`shared-references/integration-contract.md`](../shared-references/integration-contract.md) §2
+  (Codex-side chain: `$ARIS_REPO/tools/` → `tools/` → `~/.codex/skills/exa-search/`).
+  Policy D1 — standalone `/exa-search` has no documented fallback,
+  so unresolved helper terminates with an explicit error.
 - **MAX_RESULTS = 10** — Default number of results to return.
 
 > Overrides (append to arguments):
@@ -74,11 +78,20 @@ Parse `$ARGUMENTS` for:
 ### Step 2: Locate Script
 
 ```bash
-ARIS_REPO="${ARIS_REPO:-$(awk -F'\t' '$1=="repo_root"{print $2; exit}' .aris/installed-skills-codex.txt 2>/dev/null)}"
-SCRIPT=""
-[ -n "$ARIS_REPO" ] && [ -f "$ARIS_REPO/tools/exa_search.py" ] && SCRIPT="$ARIS_REPO/tools/exa_search.py"
-[ -z "$SCRIPT" ] && SCRIPT=$(find tools/ -name "exa_search.py" 2>/dev/null | head -1)
-[ -z "$SCRIPT" ] && SCRIPT=$(find ~/.codex/skills/exa-search/ -name "exa_search.py" 2>/dev/null | head -1)
+# Resolve $EXA_FETCHER via the canonical strict-safe Codex chain.
+if [ -z "${ARIS_REPO:-}" ] && [ -f .aris/installed-skills-codex.txt ]; then
+    ARIS_REPO=$(awk -F'\t' '$1=="repo_root"{print $2; exit}' .aris/installed-skills-codex.txt 2>/dev/null) || true
+fi
+EXA_FETCHER=""
+[ -n "${ARIS_REPO:-}" ] && [ -f "$ARIS_REPO/tools/exa_search.py" ] && EXA_FETCHER="$ARIS_REPO/tools/exa_search.py"
+[ -z "$EXA_FETCHER" ] && [ -f tools/exa_search.py ] && EXA_FETCHER="tools/exa_search.py"
+[ -z "$EXA_FETCHER" ] && [ -f ~/.codex/skills/exa-search/exa_search.py ] && EXA_FETCHER="$HOME/.codex/skills/exa-search/exa_search.py"
+[ -z "$EXA_FETCHER" ] && {
+  echo "ERROR: exa_search.py not resolved at \$ARIS_REPO/tools/, tools/, or ~/.codex/skills/exa-search/." >&2
+  echo "       Fix: rerun tools/install_aris_codex.sh, export ARIS_REPO, or copy the helper to ~/.codex/skills/exa-search/." >&2
+  echo "       Also ensure 'exa-py' is installed: pip install exa-py" >&2
+  exit 1
+}
 ```
 
 If not found, tell the user:
@@ -91,12 +104,12 @@ pip install exa-py
 
 **Standard search:**
 ```bash
-python3 "$SCRIPT" search "QUERY" --max 10 --content highlights
+python3 "$EXA_FETCHER" search "QUERY" --max 10 --content highlights
 ```
 
 **With filters:**
 ```bash
-python3 "$SCRIPT" search "QUERY" --max 10 \
+python3 "$EXA_FETCHER" search "QUERY" --max 10 \
   --category "research paper" \
   --start-date 2025-01-01 \
   --content text --max-chars 8000
@@ -104,12 +117,12 @@ python3 "$SCRIPT" search "QUERY" --max 10 \
 
 **Find similar pages:**
 ```bash
-python3 "$SCRIPT" find-similar "URL" --max 5 --content highlights
+python3 "$EXA_FETCHER" find-similar "URL" --max 5 --content highlights
 ```
 
 **Get content for known URLs:**
 ```bash
-python3 "$SCRIPT" get-contents "URL1" "URL2" --content text
+python3 "$EXA_FETCHER" get-contents "URL1" "URL2" --content text
 ```
 
 ### Step 4: Present Results

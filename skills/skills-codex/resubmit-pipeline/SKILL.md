@@ -1,6 +1,6 @@
 ---
 name: resubmit-pipeline
-description: "Workflow 5: orchestrate a text-only resubmit of a polished paper to a different venue under hard constraints (no new experiments, no bib edits, no framework changes, never overwrite prior submissions). Phase 0 physical isolation, Phase 0.5 health + anonymity check, Phase 1 audit (proof / claim / citation), Phase 2 microedits via auto-loop with edit-whitelist + citation-audit --soft-only, Phase 3 kill-argument adversarial gate, Phase 4 final compile + Overleaf push via /overleaf-sync. Use when user says \"resubmit pipeline\", \"重投流程\", \"port paper to <new venue>\", \"resubmit to <venue>\", \"tighten paper for resubmission\", or has a rejected/withdrawn paper to move to a different top venue under tight time budget."
+description: "Workflow 5: orchestrate a text-only resubmit of a polished paper to a different venue under hard constraints (no new experiments, no bib edits, no framework changes, never overwrite prior submissions). Use when user says \"resubmit pipeline\", \"重投流程\", \"port paper to <new venue>\", \"resubmit to <venue>\", \"tighten paper for resubmission\", or has a rejected/withdrawn paper to move to a different top venue under tight time budget."
 argument-hint: "[paper-base-dir] [— target-venue: <name>] [— review-corpus: <path>]"
 allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob, spawn_agent
 ---
@@ -35,7 +35,7 @@ Existing skills cover adjacent territory but none of this exact composition: `/r
 
 ## Constants
 
-- **REVIEWER_MODEL** = inherits from `/auto-paper-improvement-loop`'s default (`gpt-5.4` via Codex MCP) unless the user passes `— reviewer-model: gpt-5.5`. Codex reasoning effort is fixed at `xhigh` for all reviewer calls per the existing skill convention.
+- **REVIEWER_MODEL** = inherits from `/auto-paper-improvement-loop`'s default (`gpt-5.5` via Codex MCP) unless the user passes `— reviewer-model: gpt-5.4` (legacy) or another OpenAI model. Codex reasoning effort is fixed at `xhigh` for all reviewer calls per the existing skill convention.
 - **ROUNDS** = 2 (default; matches `/auto-paper-improvement-loop`'s diminishing-returns line). A 3rd round only fires if Phase 2 reports non-convergence AND the user explicitly approves at the round-2 checkpoint.
 - **EFFORT** = `max` (default for resubmit; resubmit is high-stakes). The user can override with `— effort: balanced` if time is extremely tight.
 - **EDIT_WHITELIST_PATH** = `<paper-base-dir>/../<NewVenue>/.aris/edit_whitelist.yaml` (auto-generated in Phase 0; user can override with a custom path).
@@ -52,7 +52,7 @@ Three mandatory inputs:
 
 Optional:
 
-- **`— reviewer-model: gpt-5.5`** — override the default reviewer (`gpt-5.4`).
+- **`— reviewer-model: gpt-5.4`** — override the default reviewer (`gpt-5.5`); use this for legacy reproducibility or to consume the older quota tier.
 - **`— rounds: <int>`** — override default 2.
 - **`— assurance: draft`** — relax MANDATORY gates (default `submission`).
 - **`— effort: balanced`** — relax `max` if time is critical.
@@ -203,7 +203,7 @@ The load-bearing phase. `/auto-paper-improvement-loop` is invoked with **two saf
    rationale: "Resubmit mode: text-only microedits, paper structure frozen by user constraint."
    ```
 
-2. **Per-round diff gate via auto-loop's HUMAN_CHECKPOINT** — `/auto-paper-improvement-loop` does not accept `--rounds`, `--reviewer-model`, or `--resume-after-round-checkpoint` flags (those are not in its CLI). It uses the `MAX_ROUNDS = 2` constant and `REVIEWER_MODEL = gpt-5.4` defaults, with an existing `HUMAN_CHECKPOINT` mechanism for round gating. Resubmit-pipeline therefore invokes the loop **once** with `HUMAN_CHECKPOINT = true` so each round pauses for the orchestrator to inspect the diff:
+2. **Per-round diff gate via auto-loop's HUMAN_CHECKPOINT** — `/auto-paper-improvement-loop` does not accept `--rounds`, `--reviewer-model`, or `--resume-after-round-checkpoint` flags (those are not in its CLI). It uses the `MAX_ROUNDS = 2` constant and `REVIEWER_MODEL = gpt-5.5` defaults, with an existing `HUMAN_CHECKPOINT` mechanism for round gating. Resubmit-pipeline therefore invokes the loop **once** with `HUMAN_CHECKPOINT = true` so each round pauses for the orchestrator to inspect the diff:
 
    ```bash
    # Snapshot the new venue dir BEFORE auto-loop runs (for diff baseline,
@@ -424,4 +424,4 @@ Every Codex MCP reviewer call across all phases saves traces per `shared-referen
 - This skill orchestrates several existing skills (proof-checker, paper-claim-audit, citation-audit, auto-paper-improvement-loop, kill-argument, paper-compile, overleaf-sync) plus uses two recently-added parameters (`/auto-paper-improvement-loop --edit-whitelist`, `/citation-audit --soft-only`). Make sure those parameters resolve to the current SKILL.md versions before relying on the resubmit pipeline.
 - The 5-layer anonymity scan is intentionally more thorough than `/paper-compile`'s generic self-citation warning, because resubmit-mode often inherits camera-ready text from a non-double-blind venue going to a double-blind venue.
 - Page-shrink heuristic is ordered (compress conclusion → tighten hedging → move marginal figures → move proof sketches → compress related-work prose). The order is calibrated to "least risky to most risky" — compressing conclusion is mostly editorial; moving proof sketches changes the reading flow. Stop as early as page limit is met.
-- `RESUBMIT_REPORT.json` schema follows `shared-references/assurance-contract.md` exactly. This makes resubmit runs forensically reproducible. **Note**: `tools/verify_paper_audits.sh` does not currently include `RESUBMIT_REPORT.json` in its `MANDATORY_AUDITS` list (the verifier checks proof / paper-claim / citation / kill-argument). The 4 mandatory audit files consumed by resubmit (which DO live in `<NEW_VENUE_DIR>/`) are recognized by the verifier as usual; `RESUBMIT_REPORT.json` is the orchestrator's own ledger and is not yet a verifier mandatory artifact. Adding it to the verifier is a separate follow-up if the user wants resubmit to be a submission gate via the verifier.
+- `RESUBMIT_REPORT.json` schema follows `shared-references/assurance-contract.md` exactly. This makes resubmit runs forensically reproducible. **Note**: `verify_paper_audits.sh` does not currently include `RESUBMIT_REPORT.json` in its `MANDATORY_AUDITS` list (the verifier checks proof / paper-claim / citation / kill-argument). The 4 mandatory audit files consumed by resubmit (which DO live in `<NEW_VENUE_DIR>/`) are recognized by the verifier as usual; `RESUBMIT_REPORT.json` is the orchestrator's own ledger and is not yet a verifier mandatory artifact. Adding it to the verifier is a separate follow-up if the user wants resubmit to be a submission gate via the verifier.

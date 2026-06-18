@@ -2,7 +2,7 @@
 name: patent-review
 description: "Get an external patent examiner review of a patent application. Use when user says \"专利审查\", \"patent review\", \"审查意见\", \"examiner review\", or wants critical feedback on patent claims and specification."
 argument-hint: [patent-directory-or-scope]
-allowed-tools: Bash(*), Read, Grep, Glob, Write, Edit, Agent, mcp__codex__codex, mcp__codex__codex-reply
+allowed-tools: Bash(*), Read, Grep, Glob, Write, Edit, mcp__codex__codex, mcp__codex__codex-reply
 ---
 
 # Patent Examiner Review via Codex MCP (xhigh reasoning)
@@ -13,9 +13,9 @@ Adapted from `/research-review`. The reviewer persona is a patent examiner, not 
 
 ## Constants
 
-- `REVIEWER_MODEL = gpt-5.4` — Model used via Codex MCP
+- `REVIEWER_MODEL = gpt-5.5` — Model used via Codex MCP
 - `REVIEW_ROUNDS = 2` — Number of review rounds
-- `EXAMINER_PERSONA = "patent-examiner"` — GPT-5.4 persona
+- `EXAMINER_PERSONA = "patent-examiner"` — GPT-5.5 persona
 
 ## Prerequisites
 

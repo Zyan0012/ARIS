@@ -2,7 +2,7 @@
 name: research-wiki
 description: "Persistent research knowledge base that accumulates papers, ideas, experiments, claims, and their relationships across the entire research lifecycle. Inspired by Karpathy's LLM Wiki pattern. Use when user says \"知识库\", \"research wiki\", \"add paper\", \"wiki query\", \"查知识库\", or wants to build/query a persistent field map."
 argument-hint: [subcommand: init|ingest|sync|query|update|lint|stats]
-allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob, Agent, WebSearch, WebFetch
+allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob, WebSearch, WebFetch
 ---
 
 # Research Wiki: Persistent Research Knowledge Base
@@ -268,7 +268,7 @@ All paper-reading skills follow the same **integration contract** (see
 - single canonical helper — `python3 "$ARIS_REPO/tools/research_wiki.py" ingest_paper …`
 - concrete artifact — `papers/<slug>.md` + `log.md` entry
 - backfill — `sync --arxiv-ids …`
-- diagnostic — `$ARIS_REPO/tools/verify_wiki_coverage.sh`
+- diagnostic — `verify_wiki_coverage.sh` (Policy E; resolved per integration-contract §2)
 
 ### Hook 1: After `/research-lit` finds papers
 

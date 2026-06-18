@@ -2,7 +2,7 @@
 name: specification-writing
 description: "Write the full patent specification from claims and invention disclosure. Use when user says \"撰写说明书\", \"write specification\", \"写说明书\", \"patent description\", or wants to draft the complete patent specification."
 argument-hint: [claims-path]
-allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob, Agent, Skill, WebSearch, WebFetch
+allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob, Skill, WebSearch, WebFetch
 ---
 
 # Specification Writing: Section-by-Section Patent Description
@@ -13,7 +13,7 @@ Adapted from `/paper-write` for patent specifications. The specification support
 
 ## Constants
 
-- `REVIEWER_MODEL = gpt-5.4` — External reviewer for specification quality
+- `REVIEWER_MODEL = gpt-5.5` — External reviewer for specification quality
 - `JURISDICTION = "auto"` — Inherit from pipeline or detect from args; `CN`, `US`, `EP`, `ALL`
 - `OUTPUT_FORMAT = "markdown"` — Markdown drafts; converted to filing format by `/jurisdiction-format`
 - `OUTPUT_DIR = "patent/"` — Base output directory
@@ -156,7 +156,7 @@ Call `REVIEWER_MODEL` via a dedicated Codex reviewer agent at xhigh reasoning:
 
 ```text
 spawn_agent:
-  model: gpt-5.4
+  model: gpt-5.5
   reasoning_effort: xhigh
   message: |
     You are a patent examiner reviewing a specification for completeness.

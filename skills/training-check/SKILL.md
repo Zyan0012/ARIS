@@ -9,13 +9,21 @@ allowed-tools: Bash(*), Read, Grep, Glob, Write, Edit, mcp__codex__codex, mcp__c
 
 Periodically read WandB metrics during training to catch problems early. Do not wait until training finishes to discover it was a waste of GPU time.
 
+> ⏱ This skill is **correctly** cron-wired (see below): it polls
+> machine-checkable training health (NaN / divergence / idle GPU) — the additive
+> external-wait shape in
+> [`shared-references/external-cadence.md`](../shared-references/external-cadence.md).
+> The occasional Codex call for an ambiguous metric is a **one-shot** check per
+> tick, not a multi-round verdict loop, so it stays additive — it never grows
+> into a wrapped verdict skill.
+
 ## Context: $ARGUMENTS
 
 ## Constants
 
 - WANDB_ENTITY and WANDB_PROJECT: read from CLAUDE.md or passed as argument (format: `entity/project/run_id`)
 - CHECK_INTERVAL: starts at 10 minutes, then gradually increases if consistently healthy: 10 min → 20 min → 30 min → 60 min (cap)
-- REVIEWER_MODEL = `gpt-5.4` — used via Codex MCP for ambiguous cases only
+- REVIEWER_MODEL = `gpt-5.5` — used via Codex MCP for ambiguous cases only
 
 ## When to Use
 

@@ -26,7 +26,7 @@ Current overrides:
 - `grant-proposal`
 - `paper-plan`
 - `paper-figure`
-- `paper-poster`
+- `paper-poster-html`
 - `paper-slides`
 - `paper-write`
 - `paper-writing`
@@ -58,7 +58,7 @@ The additional **7** routed reviewer-aware entry points are:
 - `grant-proposal`
 - `paper-writing`
 - `paper-slides`
-- `paper-poster`
+- `paper-poster-html`
 
 So when comparing against the Claude overlay, the cleanest statement is:
 
@@ -78,7 +78,7 @@ So when comparing against the Claude overlay, the cleanest statement is:
   - `idea-creator`
   - `grant-proposal`
   - `paper-slides`
-  - `paper-poster`
+  - `paper-poster-html`
 - **3 wrappers** mostly orchestrate downstream reviewer-aware skills and pass `REVIEWER_MODEL=gemini-review` through:
   - `idea-discovery`
   - `idea-discovery-robot`

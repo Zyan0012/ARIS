@@ -2,7 +2,7 @@
 name: paper-claim-audit
 description: "Zero-context verification that every number, comparison, and scope claim in the paper matches raw result files. Uses a fresh cross-model reviewer with NO prior context to prevent confirmation bias. Use when user says \"审查论文数据\", \"check paper claims\", \"verify numbers\", \"论文数字核对\", or before submission to ensure paper-to-evidence fidelity."
 argument-hint: [paper-directory]
-allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob, Agent
+allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob
 ---
 
 # Paper Claim Audit: Zero-Context Evidence Verification
@@ -76,13 +76,13 @@ NARRATIVE_REPORT.md, PAPER_PLAN.md, findings.md
 Any .md file that is an executor-written summary
 ```
 
-### Step 2: Fresh Reviewer Audit (GPT-5.4 — NEW thread, no reply)
+### Step 2: Fresh Reviewer Audit (GPT-5.5 — NEW thread, no reply)
 
 **CRITICAL: Use a fresh reviewer agent every run.** Never reuse an old reviewer context for this audit.
 
 ```text
 spawn_agent:
-  model: gpt-5.4
+  model: gpt-5.5
   reasoning_effort: xhigh
   message: |
     You are a paper-to-evidence auditor. You have ZERO prior context about
@@ -163,7 +163,7 @@ Parse the reviewer's response and write `PAPER_CLAIM_AUDIT.md`:
 # Paper Claim Audit Report
 
 **Date**: [today]
-**Auditor**: GPT-5.4 xhigh (fresh zero-context thread)
+**Auditor**: GPT-5.5 xhigh (fresh zero-context thread)
 **Paper**: [paper title from tex]
 
 ## Overall Verdict: [PASS | WARN | FAIL]
@@ -234,9 +234,23 @@ Same pattern as `/experiment-audit`:
 - `WARN` → print warning, continue, flag draft as "check numbers before submission"
 - `FAIL` → print alert, continue, but do NOT mark as submission-ready
 
+## Render HTML view (auto, when `RENDER_HTML = true`, default)
+
+After writing `paper/PAPER_CLAIM_AUDIT.md` and `paper/PAPER_CLAIM_AUDIT.json`, invoke `/render-html` on the audit report:
+
+```
+/render-html "paper/PAPER_CLAIM_AUDIT.md" --json "paper/PAPER_CLAIM_AUDIT.json"
+```
+
+Uses **full review gate** (audit-class artifact — render-fidelity check matches the skill's zero-context cross-model audit invariant). Output: `paper/PAPER_CLAIM_AUDIT.html` with embedded source SHA256 + `.review.json` sidecar.
+
+**Non-blocking**: if `/render-html` fails (helper missing, secondary Codex agent unavailable, file write error), log the failure and treat the audit as complete — the JSON + MD verdict files are canonical; the HTML view is a human-reader convenience.
+
+Skip if `RENDER_HTML = false` is set in `AGENTS.md` / `CLAUDE.md` or passed as `— render html: false`.
+
 ## Key Rules
 
-- **Fresh thread EVERY run.** Never use `codex-reply`. Never carry context.
+- **Fresh thread EVERY run.** Never use a continuation reply. Never carry context.
 - **Zero executor interpretation.** Only file paths. No summaries.
 - **Only raw results.** No EXPERIMENT_LOG, no AUTO_REVIEW, no human summaries.
 - **Rounding rule.** Only standard rounding to displayed precision. 84.7% → 84.7% or 85% is OK. 84.7% → 85.3% is NOT OK.
@@ -244,7 +258,7 @@ Same pattern as `/experiment-audit`:
 
 ## Review Tracing
 
-After each reviewer agent call, save the trace following `shared-references/review-tracing.md`. Use `tools/save_trace.sh` or write files directly to `.aris/traces/<skill>/<date>_run<NN>/`. Respect the `--- trace:` parameter (default: `full`).
+After each reviewer agent call, save the trace following `shared-references/review-tracing.md` (Policy C — forensic; never silently skip). Use `save_trace.sh` (resolved per the chain in `shared-references/integration-contract.md` §2) or write files directly to `.aris/traces/<skill>/<date>_run<NN>/`. Respect the `--- trace:` parameter (default: `full`).
 
 ## Submission Artifact Emission
 
@@ -252,7 +266,7 @@ This skill **always** writes `paper/PAPER_CLAIM_AUDIT.json`, regardless of
 caller or detector outcome. A detector-negative run (paper has no numeric
 claims) emits verdict `NOT_APPLICABLE`; a paper-with-numeric-claims-but-no-
 raw-results run emits `BLOCKED`. Silent skip is forbidden — `paper-writing`
-Phase 6 and `tools/verify_paper_audits.sh` both rely on this artifact
+Phase 6 and `verify_paper_audits.sh` both rely on this artifact
 existing at a predictable path.
 
 The artifact conforms to the schema in `shared-references/assurance-contract.md`:
@@ -270,7 +284,7 @@ The artifact conforms to the schema in `shared-references/assurance-contract.md`
   },
   "trace_path":       ".aris/traces/paper-claim-audit/<date>_run<NN>/",
   "thread_id":        "<codex mcp thread id>",
-  "reviewer_model":   "gpt-5.4",
+  "reviewer_model":   "gpt-5.5",
   "reviewer_reasoning": "xhigh",
   "generated_at":     "<UTC ISO-8601>",
   "details": {
@@ -290,7 +304,7 @@ passed only `main.tex` + a single result file, hash those two files and no
 others. The external verifier rehashes these entries; any mismatch flags
 `STALE`.
 
-**Path convention** (must match what `tools/verify_paper_audits.sh`
+**Path convention** (must match what `verify_paper_audits.sh`
 expects): keys are **paths relative to the paper directory** (the arg
 passed to the verifier) for in-paper files — so `main.tex`, not
 `paper/main.tex` — and **absolute paths** for out-of-paper files such as
@@ -320,7 +334,7 @@ thread preserves reviewer independence per
 ### Human-readable sibling
 
 `paper/PAPER_CLAIM_AUDIT.md` is written alongside the JSON for readers.
-The JSON is authoritative for `tools/verify_paper_audits.sh`; the Markdown
+The JSON is authoritative for `verify_paper_audits.sh`; the Markdown
 is for humans. The parent skill (`paper-writing` Phase 6) plus the verifier
 decide whether the verdict blocks finalization — this skill itself never
 blocks; it only emits.

@@ -9,7 +9,7 @@ import tempfile
 
 MINIMAX_API_KEY = os.environ.get("MINIMAX_API_KEY", "")
 MINIMAX_BASE_URL = os.environ.get("MINIMAX_BASE_URL", "https://api.minimax.io/v1")
-DEFAULT_MODEL = os.environ.get("MINIMAX_MODEL", "MiniMax-M2.7")
+DEFAULT_MODEL = os.environ.get("MINIMAX_MODEL", "MiniMax-M3")
 
 DEBUG_LOG = os.path.join(tempfile.gettempdir(), "minimax-mcp-debug.log")
 
@@ -26,7 +26,10 @@ def clamp_temperature(temp):
     """Clamp temperature to MiniMax's allowed range (0.0, 1.0]."""
     if temp is None:
         return None
-    temp = float(temp)
+    try:
+        temp = float(temp)
+    except (TypeError, ValueError) as e:
+        raise ValueError(f"Invalid temperature: {temp!r} ({e})")
     if temp <= 0.0:
         return 0.01
     if temp > 1.0:
@@ -59,7 +62,10 @@ def call_minimax(messages, model=None, temperature=0.7):
                 error_msg = f"API error {response.status_code}: {response.text[:500]}"
                 return None, error_msg
             data = response.json()
-            content = data["choices"][0]["message"]["content"]
+            try:
+                content = data["choices"][0]["message"]["content"]
+            except (KeyError, IndexError, TypeError) as e:
+                return None, f"Unexpected API response structure: {e}"
             return content, None
     except Exception as e:
         return None, str(e)
@@ -104,7 +110,7 @@ def handle_request(request):
             "result": {
                 "tools": [{
                     "name": "minimax_chat",
-                    "description": "Send a message to MiniMax model and get a response. Use this for research reviews, code analysis, and general AI tasks. Supports MiniMax-M2.7 (default, 204K context) and MiniMax-M2.7-highspeed.",
+                    "description": "Send a message to MiniMax model and get a response. Use this for research reviews, code analysis, and general AI tasks. Supports MiniMax-M3 (default, 512K context), MiniMax-M2.7 (204K context) and MiniMax-M2.7-highspeed.",
                     "inputSchema": {
                         "type": "object",
                         "properties": {
@@ -114,9 +120,9 @@ def handle_request(request):
                             },
                             "model": {
                                 "type": "string",
-                                "description": "Model to use: MiniMax-M2.7 (default, 204K context) or MiniMax-M2.7-highspeed (faster, 204K context)",
-                                "default": "MiniMax-M2.7",
-                                "enum": ["MiniMax-M2.7", "MiniMax-M2.7-highspeed", "MiniMax-M2.5", "MiniMax-M2.5-highspeed"]
+                                "description": "Model to use: MiniMax-M3 (default, 512K context), MiniMax-M2.7 (204K context) or MiniMax-M2.7-highspeed (faster, 204K context)",
+                                "default": "MiniMax-M3",
+                                "enum": ["MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.7-highspeed"]
                             },
                             "system": {
                                 "type": "string",

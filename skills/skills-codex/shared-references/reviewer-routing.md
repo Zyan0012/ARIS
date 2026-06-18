@@ -12,13 +12,15 @@ All reviewer-heavy Codex base skills use the same default contract:
 
 This is the base default for `skills/skills-codex/`. No effort level or unrelated parameter changes it.
 
+> ⚠️ **Same-family by default — Type-A only, NOT a cross-family verdict.** The executor here is Codex (GPT family) and this default reviewer is a *second Codex agent* — same family. That is a valid **Type-A** review (it finds omissions, ranks weaknesses, drives the fix loop), but it is **NOT** the cross-model **Type-B acquittal** ARIS's invariant requires — one model family judging itself voids the verdict (mainline `acceptance-gate.md`). For a Type-B cross-family verdict, install the **`skills-codex-claude-review`** or **`skills-codex-gemini-review`** overlay (the only genuinely cross-family reviewers for a Codex executor). Note `oracle-pro` (gpt-5.x-pro) is **also GPT family**, so it does NOT cross the family boundary for a Codex executor either.
+
 ## Default Pattern
 
 Single-round review:
 
 ```text
 spawn_agent:
-  model: gpt-5.4
+  model: gpt-5.5
   reasoning_effort: xhigh
   message: |
     [role + task]
@@ -29,7 +31,7 @@ Multi-round review:
 
 ```text
 spawn_agent:
-  model: gpt-5.4
+  model: gpt-5.5
   reasoning_effort: xhigh
   message: |
     [initial review prompt]

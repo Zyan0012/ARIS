@@ -2,12 +2,50 @@
 name: meta-optimize
 description: "Analyze ARIS usage logs and propose optimizations to SKILL.md files, reviewer prompts, and workflow defaults. Outer-loop harness optimization inspired by Meta-Harness (Lee et al., 2026). Use when user says \"优化技能\", \"meta optimize\", \"improve skills\", \"分析使用记录\", or wants to optimize ARIS's own harness components based on accumulated experience."
 argument-hint: [target-skill-or-all]
-allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob, Agent, mcp__codex__codex, mcp__codex__codex-reply
+allowed-tools: Bash(*), Read, Grep, Glob, mcp__codex__codex, mcp__codex__codex-reply
 ---
 
 # Meta-Optimize: Outer-Loop Harness Optimization for ARIS
 
 Analyze accumulated usage logs and propose optimizations for: **$ARGUMENTS**
+
+## Privilege boundary — this skill is a READ-ONLY PRODUCER
+
+meta-optimize **proposes**; it does not **land**. The mutation of the skill corpus
+is the exclusive job of a separate, human-invoked skill: [`/meta-apply`](../meta-apply/SKILL.md).
+This split is structural, not advisory — it is why a missed instruction cannot let
+this loop apply its own patch (the self-acquittal failure mode):
+
+- **No `Write`/`Edit` tool.** This skill cannot edit a SKILL.md / shared-reference /
+  any corpus file with the frictionless mutators. Its only outputs are the REPORT and
+  staged patch files, written under `.aris/meta/` (a scratch area, never the corpus).
+- **No apply step.** There is no in-skill "apply the patch" path (see Step 6). The
+  producer ends by *staging* approved patches for `/meta-apply`; a human must then
+  invoke `/meta-apply` to land them. That human action is the landing gate.
+- **`Bash` writes to the corpus are filtered, not impossible — be honest about the
+  layers.** What IS fully closed: the *accidental / in-flow* self-acquittal — this skill
+  has no `Write`/`Edit` and no apply step, so an honest run cannot slip into editing the
+  corpus. Defense-in-depth: install the
+  [`corpus_write_guard`](../../templates/claude-hooks/corpus_write_guard.json) PreToolUse
+  hook (like `meta_logging.json`), which DENIES the common Bash shell-writes (`>`, `tee`,
+  `sed -i`, `cp`/`mv`, `touch`, `open(...,'w')`) to corpus paths. **This is a blacklist,
+  NOT a complete sandbox** — a *deliberately* obscured Bash write (`git apply`, `patch`,
+  `$var`/absolute paths, language file APIs) is not all caught. **Full structural
+  prevention requires either removing this skill's `Bash` or an FS sandbox** — over-built
+  for a not-yet-load-bearing producer, so deferred to when the gate carries real
+  auto-modification volume (a brick-3 trigger). The intended backstop against a deliberate
+  write is **detection, not prevention** — a corpus change with no valid/current
+  `provenance` stamp (content-hash mismatch) *would be* catchable in a pre-push integrity
+  check — but that verifier is **NOT yet built** (`provenance.py` has `content_hash` but no
+  integrity-check subcommand, and no pre-push hook runs one). So today the deliberate-write
+  case is neither prevented nor actively detected; track the integrity verifier as a
+  follow-up before this producer goes load-bearing. Its legitimate Bash writes go only to
+  `.aris/meta/`.
+
+See [`shared-references/acceptance-gate.md`](../shared-references/acceptance-gate.md):
+a loop can DRIVE (propose, review) same-model, but the ACQUITTAL that lands a change
+must be cross-model (Step 4 jury) **and** the landing must be a separate human-gated
+act (`/meta-apply`).
 
 ## Context
 
@@ -120,14 +158,26 @@ For each optimization target, generate a concrete diff:
 - Patches must be minimal — change only what the data supports
 - Never change artifact schemas or MCP bridge config in v1
 - Never change behavior that would break existing user workflows
+- **Anti-self-poisoning screen** (see [`shared-references/capture-antipatterns.md`](../shared-references/capture-antipatterns.md)):
+  run a proposed patch's rationale through `tools/capture_filter.py` (resolve via
+  the canonical chain). NEVER propose a change that encodes a **negative
+  tool-capability claim** ("codex can't…", "gemini is broken") or a **one-off /
+  transient failure** as a durable rule — those harden into self-cited refusals.
+  Encode the *fix / the flag needed / the workaround*, not "X can't do Y".
 
-### Step 4: Cross-Model Review of Patches
+### Step 4: Cross-Model Review of Patches (ADVISORY pre-screen)
 
-Send each patch to GPT-5.4 xhigh for adversarial review:
+> This review is **advisory** — it sharpens the Step-5 REPORT so the human can decide
+> what to stage. It is **not** the landing verdict. The binding cross-model jury runs
+> later, at landing, inside [`/meta-apply`](../meta-apply/SKILL.md), on the actual staged
+> diff (a producer-relayed verdict would be forgeable). Record this result as
+> `advisory_screen` only.
+
+Send each patch to GPT-5.5 xhigh for adversarial review:
 
 ```
 mcp__codex__codex:
-  model: gpt-5.4
+  model: gpt-5.5
   config: {"model_reasoning_effort": "xhigh"}
   prompt: |
     You are reviewing a proposed optimization to an ARIS SKILL.md file.
@@ -182,19 +232,32 @@ Output a structured report:
 - [ ] Consider manual review of Change 2
 
 ## Next Steps
-Run `/meta-optimize apply 1` to apply a specific change, or
-`/meta-optimize apply all` to apply all recommended changes.
+This skill only **proposes**. To land changes: tell me which to stage, then run
+`/meta-apply` (a separate, human-invoked applier that re-checks the cross-model
+verdict before mutating anything). meta-optimize never applies.
 ```
 
-### Step 6: Apply Changes (if user approves)
+### Step 6: Stage approved patches for `/meta-apply` (NO in-skill apply)
 
-If user runs `/meta-optimize apply [N]`:
-1. Back up original SKILL.md to `.aris/meta/backups/`
-2. Apply the patch
-3. Log the change to `.aris/meta/optimizations.jsonl`
-4. Remind user to test the changed skill on their next run
+This skill does **not** apply anything. After the user has read the Step-5 REPORT and
+indicated which changes to land, **stage** them for the privileged applier:
 
-**Never auto-apply without user approval.**
+1. For each approved change `N`, write its unified diff to
+   `.aris/meta/pending/<NN>_<skill>.diff` and append a row to
+   `.aris/meta/pending/manifest.jsonl`:
+   `{patch: "<NN>_<skill>.diff", target: "<corpus path>", author_model: "<executor>",
+   advisory_screen: "pass|kill", advisory_reason: "<one line>"}`.
+   The `advisory_screen` (your Step-4 codex pre-review) is **advisory only** — it helps
+   the human read the REPORT. It is **NOT** the landing verdict and `/meta-apply` does not
+   trust it: a producer-written verdict would be forgeable. The binding cross-model jury
+   runs **at landing, inside `/meta-apply`,** on the actual staged diff.
+2. Tell the user: *"Staged M patches. Run `/meta-apply` to judge & land them."*
+
+The backup → **fresh jury-at-landing** → apply → **provenance stamp** → log all happen
+inside [`/meta-apply`](../meta-apply/SKILL.md). meta-optimize never touches the corpus and
+never produces the acquittal.
+
+**Never apply in this skill. Landing is `/meta-apply` + a fresh jury + a human, always.**
 
 ## Key Rules
 
@@ -250,4 +313,4 @@ Inspired by [Meta-Harness](https://arxiv.org/abs/2603.28052) (Lee et al., 2026) 
 
 ## Review Tracing
 
-After each `mcp__codex__codex` or `mcp__codex__codex-reply` reviewer call, save the trace following `shared-references/review-tracing.md`. Use `tools/save_trace.sh` or write files directly to `.aris/traces/<skill>/<date>_run<NN>/`. Respect the `--- trace:` parameter (default: `full`).
+After each `mcp__codex__codex` or `mcp__codex__codex-reply` reviewer call, save the trace following `shared-references/review-tracing.md` (Policy C — forensic; never silently skip). Use `save_trace.sh` (resolved per the chain in `shared-references/integration-contract.md` §2) or write files directly to `.aris/traces/<skill>/<date>_run<NN>/`. Respect the `--- trace:` parameter (default: `full`).

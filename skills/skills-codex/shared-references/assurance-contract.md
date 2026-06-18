@@ -2,7 +2,7 @@
 
 ARIS audits emit machine-readable verdicts. The `assurance` axis decides whether those verdicts are advisory in draft mode or load-bearing gates in submission mode.
 
-This contract is referenced by `paper-writing`, `paper-claim-audit`, `citation-audit`, `proof-checker`, and the external verifier `tools/verify_paper_audits.sh`.
+This contract is referenced by `paper-writing`, `paper-claim-audit`, `citation-audit`, `proof-checker`, and the external verifier (canonical name `verify_paper_audits.sh`; callers resolve the actual path via `integration-contract.md` §2).
 
 ## Why a separate axis from `effort`
 
@@ -28,7 +28,7 @@ Override either independently. For example, `— effort: balanced, assurance: su
 
 - All mandatory audits must emit a verdict.
 - Silent skip is forbidden.
-- `paper-writing` runs `tools/verify_paper_audits.sh`.
+- `paper-writing` runs `verify_paper_audits.sh` (resolved per `integration-contract.md` §2).
 - A non-zero verifier exit blocks the Final Report.
 - The Final Report marks `submission-ready: yes/no` from verifier output.
 
@@ -76,7 +76,7 @@ Every mandatory audit must write a JSON artifact, and may also write a Markdown 
   },
   "trace_path": ".aris/traces/paper-claim-audit/2026-04-21_run01/",
   "agent_id": "019dae73-fc12-4ab8-...",
-  "reviewer_model": "gpt-5.4",
+  "reviewer_model": "gpt-5.5",
   "reviewer_reasoning": "xhigh",
   "generated_at": "2026-04-21T14:23:01Z",
   "details": {}
@@ -97,7 +97,7 @@ Field rules:
 
 ## Verifier Contract
 
-`tools/verify_paper_audits.sh <paper-dir>` is the single source of truth for mandatory audit completeness. It must:
+`verify_paper_audits.sh <paper-dir>` (canonical name; resolved per `integration-contract.md` §2) is the single source of truth for mandatory audit completeness. It must:
 
 1. Locate expected audit artifacts.
 2. Validate JSON required fields.

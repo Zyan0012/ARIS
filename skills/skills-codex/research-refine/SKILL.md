@@ -1,6 +1,6 @@
 ---
 name: "research-refine"
-description: "Turn a vague research direction into a problem-anchored, elegant, frontier-aware, implementation-oriented method plan via iterative GPT-5.4 review. Use when the user says \"refine my approach\", \"\u5e2e\u6211\u7ec6\u5316\u65b9\u6848\", \"decompose this problem\", \"\u6253\u78e8idea\", \"refine research plan\", \"\u7ec6\u5316\u7814\u7a76\u65b9\u6848\", or wants a concrete research method that stays simple, focused, and top-venue ready instead of a vague or overbuilt idea."
+description: "Turn a vague research direction into a problem-anchored, elegant, frontier-aware, implementation-oriented method plan via iterative GPT-5.5 review. Use when the user says \"refine my approach\", \"\u5e2e\u6211\u7ec6\u5316\u65b9\u6848\", \"decompose this problem\", \"\u6253\u78e8idea\", \"refine research plan\", \"\u7ec6\u5316\u7814\u7a76\u65b9\u6848\", or wants a concrete research method that stays simple, focused, and top-venue ready instead of a vague or overbuilt idea."
 ---
 
 # Research Refine: Problem-Anchored, Elegant, Frontier-Aware Plan Refinement
@@ -22,7 +22,7 @@ Four principles dominate this skill:
 User input (PROBLEM + vague APPROACH)
   -> Phase 0 (Local step): Freeze Problem Anchor
   -> Phase 1 (Local step): Scan grounding papers -> identify technical gap -> choose the sharpest route -> write focused proposal
-  -> Phase 2 (Codex/GPT-5.4): Review for fidelity, specificity, contribution quality, and frontier leverage
+  -> Phase 2 (Codex/GPT-5.5): Review for fidelity, specificity, contribution quality, and frontier leverage
   -> Phase 3 (Local step): Anchor check + simplicity check -> revise method -> rewrite full proposal
   -> Phase 4 (Codex, same agent): Re-evaluate revised proposal
   -> Repeat Phase 3-4 until OVERALL SCORE >= 9 or MAX_ROUNDS reached
@@ -34,7 +34,7 @@ User input (PROBLEM + vague APPROACH)
 
 - **REVIEWER_BACKEND = `codex`** - Default reviewer route. If `$ARGUMENTS` explicitly contains `--reviewer: oracle-pro` or `reviewer: oracle-pro`, route reviewer calls through the shared Oracle CLI browser contract in `../shared-references/reviewer-routing.md`. Do not treat a missing Oracle MCP tool as Oracle unavailable; Codex skills use the CLI browser route by default.
 
-- **REVIEWER_MODEL = `gpt-5.4`** — Reviewer model used via a secondary Codex agent.
+- **REVIEWER_MODEL = `gpt-5.5`** — Reviewer model used via a secondary Codex agent.
 - **MAX_ROUNDS = 5** — Maximum review-revise rounds.
 - **SCORE_THRESHOLD = 9** — Minimum overall score to stop.
 - **OUTPUT_DIR = `refine-logs/`** — Directory for round files and final report.
@@ -300,7 +300,7 @@ Resolve the reviewer route before sending the review:
 - For Oracle review, save the response path and slug in `REFINE_STATE.json`; `agent_id` may be null because browser Oracle runs are one-shot.
 - Browser Pro review is a long-wait route. Use `--timeout auto --heartbeat 30 --wait` and a Codex shell/tool timeout of at least 65 minutes. If the shell/tool call times out while Oracle has a `running` session, reattach with `oracle session <slug> --live --write-output <response-path>` or harvest with `oracle session <slug> --harvest --write-output <response-path>`; do not rerun the prompt or fall back until Oracle records a terminal error.
 
-Send the full proposal to GPT-5.4 for an **elegance-first, frontier-aware, method-first** review. The reviewer should spend most of the critique budget on the method itself, not on expanding the experiment menu.
+Send the full proposal to `REVIEWER_MODEL` (GPT-5.5 by default) for an **elegance-first, frontier-aware, method-first** review. The reviewer should spend most of the critique budget on the method itself, not on expanding the experiment menu.
 
 ```
 spawn_agent:
@@ -481,12 +481,12 @@ Save to `refine-logs/round-N-refinement.md`:
 
 Use the same reviewer backend selected in Phase 2.
 
-- If the route is `codex`, send the revised proposal back to GPT-5.4 in the same agent with `send_input`.
+- If the route is `codex`, send the revised proposal back to `REVIEWER_MODEL` in the same agent with `send_input`.
 - If the route is `oracle-pro`, run a new Oracle CLI browser review for each round using the same prompt content, the previous review summary, and the full revised proposal. Use a unique slug such as `research-refine-r<N>-<short-topic>` and `--write-output refine-logs/round-N-oracle-pro.response.md`.
 - Do not mark Oracle unavailable just because no MCP tool is exposed. Only fall back after the CLI browser route itself fails or `oracle --dry-run summary ...` rejects the command.
 - Long silence from GPT-5.5 Pro is pending, not failed. Check `oracle status` and the session meta before deciding to fall back.
 
-Send the revised proposal back to GPT-5.4 in the **same agent**:
+Send the revised proposal back to `REVIEWER_MODEL` in the **same agent**:
 
 ```
 send_input:
@@ -637,7 +637,7 @@ If the final verdict is not READY, still write the best current final version he
 <details>
 <summary>Round 1 Review</summary>
 
-[Full verbatim response from GPT-5.4]
+[Full verbatim response from GPT-5.5]
 
 </details>
 

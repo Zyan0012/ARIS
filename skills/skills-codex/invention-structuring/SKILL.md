@@ -2,7 +2,7 @@
 name: invention-structuring
 description: "Structure a raw invention idea into a formal invention disclosure. Use when user says \"构建发明\", \"structure invention\", \"发明构建\", \"invention disclosure\", or wants to formalize a rough idea into a patent-ready structure."
 argument-hint: [invention-description-or-brief-path]
-allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob, Agent
+allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob
 ---
 
 # Invention Structuring
@@ -13,7 +13,7 @@ Adapted from the refinement pattern in `/research-refine` for patent invention d
 
 ## Constants
 
-- `REVIEWER_MODEL = gpt-5.4` — External reviewer for invention decomposition validation
+- `REVIEWER_MODEL = gpt-5.5` — External reviewer for invention decomposition validation
 - `MAX_REFINEMENT_ROUNDS = 3` — Maximum structuring iterations
 
 ## Inputs
@@ -114,7 +114,7 @@ Call `REVIEWER_MODEL` via a dedicated Codex reviewer agent at xhigh reasoning:
 
 ```text
 spawn_agent:
-  model: gpt-5.4
+  model: gpt-5.5
   reasoning_effort: xhigh
   message: |
     You are a patent attorney reviewing an invention disclosure.

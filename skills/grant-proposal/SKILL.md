@@ -2,7 +2,7 @@
 name: grant-proposal
 description: "Draft a structured grant proposal from research ideas and literature. Supports KAKENHI (Japan), NSF (US), NSFC (China, including 面上/青年/优青/杰青/海外优青/重点), ERC (EU), DFG (Germany), SNSF (Switzerland), ARC (Australia), NWO (Netherlands), and generic formats. Use when user says \"write grant\", \"grant proposal\", \"申請書\", \"write KAKENHI\", \"科研費\", \"基金申请\", \"写基金\", \"NSF proposal\", or wants to turn research ideas into a funding application."
 argument-hint: "[research-direction — grant-type] [— style-ref: <source>]"
-allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob, WebSearch, WebFetch, Agent, Skill, mcp__codex__codex, mcp__codex__codex-reply
+allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob, WebSearch, WebFetch, Skill, mcp__codex__codex, mcp__codex__codex-reply
 ---
 
 # Grant Proposal: From Research Ideas to Fundable Application
@@ -34,7 +34,7 @@ Grant proposals argue for **future work** (feasibility + potential), not complet
 
 - **GRANT_TYPE = `KAKENHI`** — Default grant type. Supported: `KAKENHI`, `NSF`, `NSFC`, `ERC`, `DFG`, `SNSF`, `ARC`, `NWO`, `GENERIC`. Override via argument (e.g., `/grant-proposal "topic — NSF"`).
 - **GRANT_SUBTYPE = `auto`** — Sub-type within the grant agency. Examples: KAKENHI `Start-up`/`Wakate`/`Kiban-B`; NSFC `Youth`/`Excellent-Youth`/`Distinguished`/`Overseas`/`Key`; NSF `CAREER`/`CRII`/`Standard`. Auto-detected from argument or defaults to the most common sub-type.
-- **REVIEWER_MODEL = `gpt-5.4`** — Model used via Codex MCP for proposal review. Must be an OpenAI model (e.g., `gpt-5.4`, `o3`, `gpt-4o`).
+- **REVIEWER_MODEL = `gpt-5.5`** — Model used via Codex MCP for proposal review. Must be an OpenAI model (e.g., `gpt-5.5`, `o3`, `gpt-4o`).
 - **OUTPUT_FORMAT = `markdown`** — Output format. Supported: `markdown`, `latex`. LaTeX uses grant-specific templates when available.
 - **MAX_REVIEW_ROUNDS = 2** — Maximum external review-revise cycles before finalizing.
 - **OUTPUT_DIR = `grant-proposal/`** — Directory for generated proposal files.
@@ -50,12 +50,25 @@ Lets the PI steer the proposal's **structural** layout (section order tendency, 
 Only when `— style-ref: <source>` appears in `$ARGUMENTS`, run the helper FIRST, before drafting:
 
 ```bash
-if [ ! -f tools/extract_paper_style.py ]; then
-  echo "error: tools/extract_paper_style.py not found — re-run 'bash tools/install_aris.sh' to refresh the '.aris/tools' symlink (added in #174), or copy the helper manually from the ARIS repo" >&2
-  exit 1
+# Resolve $STYLE_HELPER via the canonical strict-safe chain (see
+# shared-references/integration-contract.md §2). Policy A — gate:
+# unresolved helper means --style-ref cannot be satisfied, so abort.
+cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" || exit 1
+if [ -z "${ARIS_REPO:-}" ] && [ -f .aris/installed-skills.txt ]; then
+    ARIS_REPO=$(awk -F'\t' '$1=="repo_root"{print $2; exit}' .aris/installed-skills.txt 2>/dev/null) || true
 fi
-CACHE=$(python3 tools/extract_paper_style.py --source "<source>")
-case $? in
+STYLE_HELPER=".aris/tools/extract_paper_style.py"
+[ -f "$STYLE_HELPER" ] || STYLE_HELPER="tools/extract_paper_style.py"
+[ -f "$STYLE_HELPER" ] || { [ -n "${ARIS_REPO:-}" ] && STYLE_HELPER="$ARIS_REPO/tools/extract_paper_style.py"; }
+[ -f "$STYLE_HELPER" ] || {
+  echo "ERROR: extract_paper_style.py not resolved at .aris/tools/, tools/, or \$ARIS_REPO/tools/." >&2
+  echo "       Fix: rerun bash tools/install_aris.sh, export ARIS_REPO, or copy the helper to tools/." >&2
+  echo "       --style-ref cannot be satisfied; aborting." >&2
+  exit 1
+}
+STYLE_STATUS=0
+CACHE=$(python3 "$STYLE_HELPER" --source "<source>") || STYLE_STATUS=$?
+case "$STYLE_STATUS" in
   0) ;;                                       # use $CACHE/style_profile.md as structural guidance
   2) echo "warning: style-ref skipped (missing optional dep)" >&2 ;;
   3) echo "error: --style-ref source failed; aborting proposal" >&2 ; exit 1 ;;
@@ -69,7 +82,7 @@ Sources accepted: local TeX dir / file, local PDF, arXiv id, http(s) URL. Overle
 
 - Use `style_profile.md` to align paragraph length tendency, figure budget, and citation density. Grant-type-mandated section order (KAKENHI 研究目的 → 研究計画・方法 → 準備状況, NSF Intellectual Merit → Broader Impacts, etc.) **always takes precedence** — the agency template wins, the style ref only refines secondary structure.
 - **Never copy proposal prose, claims, vision statements, or budget items** from anything reachable through the cache. The reference might be someone else's funded proposal; reproducing language risks plagiarism.
-- **Never pass `— style-ref` (or the cache contents) to the GPT-5.4 reviewer sub-agent** when it scores the draft — the proposal must be judged on its own merits.
+- **Never pass `— style-ref` (or the cache contents) to the GPT-5.5 reviewer sub-agent** when it scores the draft — the proposal must be judged on its own merits.
 
 ## Grant Type Specifications
 
@@ -318,7 +331,7 @@ Timeline: [timeline]
 ```
 
 **What this does:**
-- GPT-5.4 xhigh acts as a grant review panelist (not a paper reviewer)
+- GPT-5.5 xhigh acts as a grant review panelist (not a paper reviewer)
 - Evaluates aims independence, narrative arc, risk identification, timeline realism
 - Identifies the single biggest reviewer concern
 - Provides actionable fixes ranked by severity
@@ -334,7 +347,7 @@ Apply structural feedback before proceeding to drafting.
 - Aim 2: [title] — Risk: MEDIUM
 - Aim 3: [title] — Risk: LOW
 - Timeline: [summary]
-- Reviewer feedback: [key points from GPT-5.4]
+- Reviewer feedback: [key points from GPT-5.5]
 
 Proceed to section drafting? Or adjust the structure?
 ```
@@ -443,11 +456,11 @@ Which should I generate? (e.g., "1 and 3", "all", "skip")
 Invoke `/research-review` on the complete draft for grant-type-specific evaluation:
 
 ```
-/research-review "Complete [GRANT_TYPE] [GRANT_SUBTYPE] proposal draft. Evaluate as a [GRANT_TYPE] review panelist using official criteria. [PASTE FULL PROPOSAL TEXT]"
+/research-review "Read the grant review bundle at grant-proposal/codex_panel_review_bundle_round_1.md and evaluate it as a [GRANT_TYPE] [GRANT_SUBTYPE] review panelist using the official criteria."
 ```
 
 **What this does:**
-- GPT-5.4 xhigh acts as a grant review panelist
+- GPT-5.5 xhigh acts as a grant review panelist
 - Scores each section 1-5 using agency-specific criteria
 - Identifies fatal flaws and recommends funding/revisions/rejection
 - Provides ranked action items for improvement
@@ -459,11 +472,23 @@ If `/research-review` is invoked (preferred), it handles the Codex call internal
 
 #### Round 1 (full draft review):
 
+Write `grant-proposal/codex_panel_review_bundle_round_1.md` containing the
+criteria below plus the absolute path to `grant-proposal/GRANT_PROPOSAL.md`,
+then keep the Codex MCP prompt short:
+
 ```
 mcp__codex__codex-reply:
   threadId: [from Phase 2]
   config: {"model_reasoning_effort": "xhigh"}
   prompt: |
+    Read the grant review bundle at <absolute path to
+    grant-proposal/codex_panel_review_bundle_round_1.md> and follow all
+    instructions in it.
+```
+
+Bundle contents:
+
+```
     Review this complete [GRANT_TYPE] [GRANT_SUBTYPE] proposal draft.
 
     Act as a [GRANT_TYPE] review panelist. Evaluate using the official criteria:
@@ -481,18 +506,32 @@ mcp__codex__codex-reply:
     - Single most impactful change to improve funding chances?
     - Any fatal flaws?
 
-    [PASTE FULL PROPOSAL TEXT]
+    Proposal draft path (read this file yourself): <absolute path to
+    grant-proposal/GRANT_PROPOSAL.md>
 ```
 
 #### Round 2+ (after revisions):
 
 If MAX_REVIEW_ROUNDS > 1 and revisions were applied:
 
+Write `grant-proposal/codex_panel_review_bundle_round_N.md` containing the
+change log, any raw diff / changed-file paths worth inspecting, and the
+absolute path to the current `grant-proposal/GRANT_PROPOSAL.md`, then reuse the
+same short MCP prompt pattern:
+
 ```
 mcp__codex__codex-reply:
   threadId: [saved from Round 1]
   config: {"model_reasoning_effort": "xhigh"}
   prompt: |
+    Read the grant review bundle at <absolute path to
+    grant-proposal/codex_panel_review_bundle_round_N.md> and follow all
+    instructions in it.
+```
+
+Bundle contents:
+
+```
     [Round N review of revised [GRANT_TYPE] [GRANT_SUBTYPE] proposal]
 
     Since your last review, I have applied the following changes:
@@ -503,7 +542,8 @@ mcp__codex__codex-reply:
     Please re-evaluate. Same format: section scores, overall assessment, remaining weaknesses.
     Focus on whether the CRITICAL and MAJOR issues from Round 1 have been adequately addressed.
 
-    [PASTE REVISED PROPOSAL TEXT]
+    Revised proposal path (read this file yourself): <absolute path to
+    grant-proposal/GRANT_PROPOSAL.md>
 ```
 
 ### Phase 5: Revision & Output
@@ -569,7 +609,7 @@ Before declaring done:
 - Language: [language]
 - Aims: [N] aims covering [summary]
 - Timeline: [N] years
-- Review score: [summary from GPT-5.4]
+- Review score: [summary from GPT-5.5]
 - Output: grant-proposal/GRANT_PROPOSAL.md
 
 Files saved to grant-proposal/. Please review and customize:
@@ -615,7 +655,7 @@ Parameters can be passed inline with `—` separator. They flow to sub-skills wh
 | `max review rounds` | 2 | External review cycles | — |
 | `sources` | all | Literature sources | → `/research-lit` |
 | `arxiv download` | false | Download arXiv PDFs | → `/research-lit` |
-| `reviewer model` | gpt-5.4 | Codex review model | → Codex MCP |
+| `reviewer model` | gpt-5.5 | Codex review model | → Codex MCP |
 | `auto proceed` | false | Skip checkpoints | — |
 
 ## Composing with Other Skills

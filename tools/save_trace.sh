@@ -2,11 +2,20 @@
 # save_trace.sh — Save a reviewer MCP call trace to .aris/traces/
 # Part of the ARIS Review Tracing Protocol (shared-references/review-tracing.md)
 #
-# Usage:
+# Policy C (forensic helper). SKILL callers MUST resolve the helper path
+# through the canonical chain documented in
+# `skills/shared-references/integration-contract.md` §2; the SKILL bash
+# block then runs `bash "$TRACE_HELPER" --skill ... --purpose ... --model ...`.
+# Do NOT hard-code `bash tools/save_trace.sh` from a SKILL; the path is
+# only stable from inside the ARIS repo (manual smoke testing) and breaks
+# silently in downstream user projects that have only `.aris/tools/` or
+# `$ARIS_REPO/tools/`.
+#
+# Usage (from inside the ARIS repo, smoke test):
 #   bash tools/save_trace.sh \
 #     --skill "auto-review-loop" \
 #     --purpose "round-1-review" \
-#     --model "gpt-5.4" \
+#     --model "gpt-5.5" \
 #     --thread-id "019d8fe0-..." \
 #     --prompt-file /tmp/prompt.txt \
 #     --response-file /tmp/response.txt
@@ -15,7 +24,7 @@
 #   bash tools/save_trace.sh \
 #     --skill "experiment-audit" \
 #     --purpose "code-audit" \
-#     --model "gpt-5.4" \
+#     --model "gpt-5.5" \
 #     --thread-id "019d8fe0-..." \
 #     --prompt "Review this code..." \
 #     --response "Score: 7/10..."

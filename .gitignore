@@ -44,3 +44,6 @@ patent/
 
 # OMC runtime state
 .omc/
+
+# ARIS runtime state (per-project traces, caches, installed-skills manifest)
+.aris/

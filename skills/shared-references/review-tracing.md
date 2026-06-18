@@ -31,21 +31,52 @@ Do NOT trace: purely informational LLM calls (e.g., `codex exec` for code genera
 
 ## How to Trace
 
-After each reviewer MCP call, save the trace using the helper script:
+After each reviewer MCP call, save the trace using `save_trace.sh`,
+resolved through the canonical helper chain (see
+`integration-contract.md` §2 — failure policy C, "forensic helper").
+The full invocation:
 
 ```bash
-bash tools/save_trace.sh \
-  --skill "<skill-name>" \
-  --purpose "<purpose>" \
-  --model "<model>" \
-  --thread-id "<threadId from response>" \
-  --prompt "<full prompt as sent>" \
-  --response "<full response content>"
+# Resolve $TRACE_HELPER (canonical strict-safe chain; see integration-contract.md §2).
+cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" || exit 1
+if [ -z "${ARIS_REPO:-}" ] && [ -f .aris/installed-skills.txt ]; then
+    ARIS_REPO=$(awk -F'\t' '$1=="repo_root"{print $2; exit}' .aris/installed-skills.txt 2>/dev/null) || true
+fi
+TRACE_HELPER=".aris/tools/save_trace.sh"
+[ -f "$TRACE_HELPER" ] || TRACE_HELPER="tools/save_trace.sh"
+[ -f "$TRACE_HELPER" ] || { [ -n "${ARIS_REPO:-}" ] && TRACE_HELPER="$ARIS_REPO/tools/save_trace.sh"; }
+[ -f "$TRACE_HELPER" ] || TRACE_HELPER=""
+
+if [ -n "$TRACE_HELPER" ]; then
+  bash "$TRACE_HELPER" \
+    --skill "<skill-name>" \
+    --purpose "<purpose>" \
+    --model "<model>" \
+    --thread-id "<threadId from response>" \
+    --prompt "<full prompt as sent>" \
+    --response "<full response content>"
+else
+  # Required fallback: the resolver exhausted all three layers and
+  # save_trace.sh is unreachable, but trace artifacts are still
+  # required (unless `--- trace: off` was explicitly set on this
+  # SKILL invocation). Write the four files below directly per the
+  # schemas in "File Schemas", into:
+  #   .aris/traces/<skill-name>/<YYYY-MM-DD>_run<NN>/
+  #     run.meta.json
+  #     <NNN>-<purpose>.request.json
+  #     <NNN>-<purpose>.response.md
+  #     <NNN>-<purpose>.meta.json
+  # Do NOT silently skip — trace_path is load-bearing for any
+  # mandatory audit emitting `trace_path` in its artifact (see
+  # assurance-contract.md §"Required Audit Artifact Schema").
+  echo "WARN: save_trace.sh not resolved; writing trace files directly per review-tracing.md schema." >&2
+fi
 ```
 
-The script handles directory creation, run numbering, and file writing.
-
-If the `tools/save_trace.sh` script is not available (e.g., on Codex CLI), write the files directly following the schema below.
+The helper, when present, handles directory creation, run numbering,
+and file writing. The fallback branch above documents what to do
+when the helper is unreachable — the trace is forensic evidence, so
+"helper missing" never means "skip the trace."
 
 ## File Schemas
 
@@ -67,7 +98,7 @@ If the `tools/save_trace.sh` script is not available (e.g., on Codex CLI), write
   "purpose": "round-1-review",
   "timestamp": "2026-04-15T14:31:00+08:00",
   "tool": "mcp__codex__codex",
-  "model": "gpt-5.4",
+  "model": "gpt-5.5",
   "config": {"model_reasoning_effort": "xhigh"},
   "files_referenced": ["paper/sections/3_method.tex", "results/table1.csv"],
   "prompt": "<full prompt text>"
@@ -84,7 +115,7 @@ The reviewer's full response, verbatim. No truncation, no summarization.
   "purpose": "round-1-review",
   "timestamp": "2026-04-15T14:33:00+08:00",
   "thread_id": "019d8fe0-b25d-...",
-  "model": "gpt-5.4",
+  "model": "gpt-5.5",
   "duration_ms": 142000,
   "status": "ok"
 }

@@ -26,7 +26,7 @@
 - `grant-proposal`
 - `paper-plan`
 - `paper-figure`
-- `paper-poster`
+- `paper-poster-html`
 - `paper-slides`
 - `paper-write`
 - `paper-writing`
@@ -58,7 +58,7 @@
 - `grant-proposal`
 - `paper-writing`
 - `paper-slides`
-- `paper-poster`
+- `paper-poster-html`
 
 所以和 Claude overlay 对比时，最准确的一句话是：
 
@@ -78,7 +78,7 @@
   - `idea-creator`
   - `grant-proposal`
   - `paper-slides`
-  - `paper-poster`
+  - `paper-poster-html`
 - **3 个 wrapper**：主要串联下游 reviewer-aware skill，并传递 `REVIEWER_MODEL=gemini-review`
   - `idea-discovery`
   - `idea-discovery-robot`

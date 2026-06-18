@@ -153,7 +153,7 @@ codex mcp add gemini-review --env GEMINI_REVIEW_BACKEND=api --env GEMINI_REVIEW_
 - `grant-proposal`
 - `paper-plan`
 - `paper-figure`
-- `paper-poster`
+- `paper-poster-html`
 - `paper-slides`
 - `paper-write`
 - `paper-writing`
@@ -189,7 +189,7 @@ codex mcp add gemini-review --env GEMINI_REVIEW_BACKEND=api --env GEMINI_REVIEW_
 - `grant-proposal`
 - `paper-writing`
 - `paper-slides`
-- `paper-poster`
+- `paper-poster-html`
 
 所以更准确的理解是：
 
@@ -214,7 +214,7 @@ codex mcp add gemini-review --env GEMINI_REVIEW_BACKEND=api --env GEMINI_REVIEW_
   - `idea-creator`
   - `grant-proposal`
   - `paper-slides`
-  - `paper-poster`
+  - `paper-poster-html`
 - **3 个 wrapper**：主要负责串联下游 reviewer-aware 子 skill，并向下传递 `REVIEWER_MODEL=gemini-review`
   - `idea-discovery`
   - `idea-discovery-robot`

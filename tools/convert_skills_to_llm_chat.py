@@ -34,8 +34,8 @@ REPLACEMENTS_TEXT: list[tuple[str, str]] = [
     ("mcp__codex__codex-reply", "mcp__llm-chat__chat"),
     ("mcp__codex__codex", "mcp__llm-chat__chat"),
     # Description text
-    ("via GPT-5.4 xhigh review", "via llm-chat MCP review"),
-    ("GPT-5.4 xhigh", "LLM reviewer"),
+    ("via GPT-5.5 xhigh review", "via llm-chat MCP review"),
+    ("GPT-5.5 xhigh", "LLM reviewer"),
     ("secondary Codex agent", "LLM reviewer via llm-chat MCP"),
     ("Codex agent", "LLM reviewer"),
     ("a second Codex agent", "an LLM via llm-chat MCP"),

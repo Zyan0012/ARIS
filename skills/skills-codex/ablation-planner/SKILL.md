@@ -1,7 +1,7 @@
 ---
 name: ablation-planner
 description: "Use when main results pass result-to-claim (`claim_supported = yes` or `partial`) and ablation studies are needed for paper submission. A secondary Codex agent designs ablations from a reviewer's perspective; the local executor reviews feasibility and implements."
-allowed-tools: Bash(*), Read, Grep, Glob, Write, Edit, Agent
+allowed-tools: Bash(*), Read, Grep, Glob, Write, Edit
 ---
 
 # Ablation Planner
@@ -31,7 +31,7 @@ Read available project files to build the full picture:
 
 ```text
 spawn_agent:
-  model: gpt-5.4
+  model: gpt-5.5
   reasoning_effort: xhigh
   message: |
     You are a rigorous ML reviewer planning ablation studies.

@@ -152,7 +152,7 @@ The overlay replaces the predefined reviewer-aware Codex skills:
 - `grant-proposal`
 - `paper-plan`
 - `paper-figure`
-- `paper-poster`
+- `paper-poster-html`
 - `paper-slides`
 - `paper-write`
 - `paper-writing`
@@ -188,7 +188,7 @@ The additional **7** reviewer-aware skills routed to Gemini are:
 - `grant-proposal`
 - `paper-writing`
 - `paper-slides`
-- `paper-poster`
+- `paper-poster-html`
 
 So the practical summary is:
 
@@ -213,7 +213,7 @@ Within those 15 skills, there are two categories:
   - `idea-creator`
   - `grant-proposal`
   - `paper-slides`
-  - `paper-poster`
+  - `paper-poster-html`
 - **3 wrappers** that mainly orchestrate downstream reviewer-aware sub-skills and pass `REVIEWER_MODEL=gemini-review` through:
   - `idea-discovery`
   - `idea-discovery-robot`
