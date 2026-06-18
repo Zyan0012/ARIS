@@ -38,6 +38,10 @@ python3 tools/semantic_scholar_fetch.py search-bulk "semantic communication" --m
 python3 tools/semantic_scholar_fetch.py paper "10.1109/JSAC.2021.3126077"
 python3 tools/semantic_scholar_fetch.py paper "ARXIV:2006.10685"
 
+# Optional API key:
+#   SEMANTIC_SCHOLAR_API_KEY=...  # preferred for ARIS native search
+# Also accepted: S2_API_KEY, SEMANTIC_SCHOLAR_API_KEYS, S2_API_KEYS.
+
 # NOTE: --venue requires exact venue name (e.g. "IEEE Transactions on Signal Processing"),
 # not partial match like "IEEE". Prefer --publication-types + --fields-of-study instead.
 """
@@ -72,12 +76,35 @@ _DEFAULT_BULK_FIELDS = (
 )
 
 
+def _split_api_keys(value: str | None) -> list[str]:
+    if not value:
+        return []
+    normalized = value.replace("\n", ",").replace(";", ",")
+    return [part.strip() for part in normalized.split(",") if part.strip()]
+
+
+def _semantic_scholar_api_key() -> str | None:
+    singular_names = ("SEMANTIC_SCHOLAR_API_KEY", "S2_API_KEY")
+    for name in singular_names:
+        value = os.getenv(name, "").strip()
+        if value:
+            return value
+
+    plural_names = ("SEMANTIC_SCHOLAR_API_KEYS", "S2_API_KEYS")
+    for name in plural_names:
+        keys = _split_api_keys(os.getenv(name))
+        if keys:
+            return keys[0]
+
+    return None
+
+
 def _headers() -> dict[str, str]:
     headers = {
         "User-Agent": _USER_AGENT,
         "Accept": "application/json",
     }
-    api_key = os.getenv("SEMANTIC_SCHOLAR_API_KEY", "").strip()
+    api_key = _semantic_scholar_api_key()
     if api_key:
         headers["x-api-key"] = api_key
     return headers

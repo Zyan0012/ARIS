@@ -15,7 +15,7 @@ Systematically verify a mathematical proof via cross-model adversarial review, f
 
 - MAX_REVIEW_ROUNDS = 3
 - REVIEWER_MODEL = `gpt-5.5` via Codex reviewer agent, reasoning effort always `xhigh`
-- **REVIEWER_BACKEND = `codex`** — Default: Codex reviewer agent (`spawn_agent`, xhigh). Override with `— reviewer: oracle-pro` for GPT-5.5 Pro via Oracle MCP. See `shared-references/reviewer-routing.md`.
+- **REVIEWER_BACKEND = `codex`** — Default: Codex reviewer agent (`spawn_agent`, xhigh). Override with `— reviewer: oracle-pro` for GPT-5.5 Pro via the Oracle browser CLI route. See `shared-references/reviewer-routing.md`.
 - AUDIT_DOC: `PROOF_AUDIT.md` at the paper directory root, alongside `main.tex` (cumulative log; when invoked via `/paper-writing`, this is `paper/PROOF_AUDIT.md`)
 - REPORT_TEX: `proof_audit_report.tex` (formal before/after PDF)
 - STATE_FILE: `PROOF_CHECK_STATE.json` (for recovery)

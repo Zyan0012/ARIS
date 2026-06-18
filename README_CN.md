@@ -173,7 +173,7 @@ cd claude-fleet && bash run.sh
 >
 > Claude Code 的优势是快速丝滑的执行，Codex（GPT-5.5 xhigh）虽然慢但审稿更严谨深入。两者**速度 × 严谨**的互补特性，比单模型自我对话效果更好。
 >
-> 🧿 **想要最强审稿者？** 任何 skill 加 `— reviewer: oracle-pro` 即可通过 [Oracle MCP](https://github.com/steipete/oracle) 调用 **GPT-5.5 Pro**。Pro 级推理能力适合证明验证、实验审计和最终 stress test。支持 API key 或免费浏览器模式。[设置 →](#-optional-gpt-54-pro-via-oracle)
+> 🧿 **想要最强审稿者？** 任何 skill 加 `— reviewer: oracle-pro` 即可通过 [Oracle](https://github.com/steipete/oracle) 调用 **GPT-5.5 Pro**。Pro 级推理能力适合证明验证、实验审计和最终 stress test。支持 API key 或免费浏览器模式。[设置 →](#-optional-gpt-55-pro-via-oracle)
 
 <a id="contents"></a>
 
@@ -297,7 +297,7 @@ ARIS 读论文 → 找弱点 → 克隆代码 → 针对*那些*弱点用*那套
 - **2026-04-15** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🛡️ **论文写作流水线加固** — 基于真实 NeurIPS run 失败分析的 10 个 patch。`REVIEWER_BIAS_GUARD=true`：每轮 review 用全新 thread（codex-reply 导致分数从真实 3/10 膨胀到虚假 8/10）。Reviewer Independence Protocol：禁止向 reviewer 传递修复摘要。Step 4.5 定理重述回归测试：捕捉修复轮次中的定理漂移。Step 5.5 Kill Argument Exercise：理论论文最终轮对抗攻防。位置感知 overfull 阻断。`/paper-write` 新增 Theory Paper Consistency Pass。Bib Hygiene 强制 DBLP/CrossRef 验证。Phase 5.5 Mandatory Final Claim Audit 作为投稿门控。**Review Tracing Protocol**：完整 prompt/response 对保存到 `.aris/traces/`，支持 reviewer-independence 审计（[`review-tracing.md`](skills/shared-references/review-tracing.md)，[`save_trace.sh`](tools/save_trace.sh)）。灵感来自社区贡献 @李傲龍
 - **2026-04-15** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🎨 **[FigureSpec 渲染器 v2](tools/figure_renderer.py)** — 确定性 JSON→SVG 论文作图。形状感知边裁剪（矩形/圆/椭圆/菱形）、自环、弯曲边、多行标签含 CJK 宽度估算、综合输入验证。经 5 轮 Codex review（3/10→7/10）。ARIS 技术报告中的所有架构图和工作流图均由此生成。`/paper-illustration` 新增 `--- mode: vector` 模式
 - **2026-04-14** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 📋 **[`/paper-claim-audit`](skills/paper-claim-audit/SKILL.md)** — 零上下文论文-证据验证。全新 reviewer（无任何先验上下文）逐一比对论文中的每个数字与原始结果文件。捕捉四舍五入膨胀、最优种子挑选、配置不匹配、增量误差、范围过度声明。自动集成到工作流 3（Phase 4.7）。完成三层审计链：`/experiment-audit`（代码）→ `/result-to-claim`（科学）→ `/paper-claim-audit`（报告）。👁️ **Visual PDF review** 同步加入 improvement loop——reviewer 现在看编译后 PDF，不只是 LaTeX 源码
-- **2026-04-13** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🧿 **[GPT-5.4 Pro via Oracle](skills/shared-references/reviewer-routing.md)** — `— reviewer: oracle-pro` 调用最强推理模型。API 模式（快）或浏览器模式（免费）。支持 `/research-review`、`/auto-review-loop`、`/experiment-audit`、`/proof-checker`、`/rebuttal`、`/idea-creator`、`/research-lit`。默认仍为 Codex xhigh。未安装 = 零影响。[设置 →](#-optional-gpt-54-pro-via-oracle)
+- **2026-04-13** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🧿 **[GPT-5.5 Pro via Oracle](skills/shared-references/reviewer-routing.md)** — `— reviewer: oracle-pro` 调用最强推理模型。API 模式（快）或浏览器模式（免费）。支持 `/research-review`、`/auto-review-loop`、`/experiment-audit`、`/proof-checker`、`/rebuttal`、`/idea-creator`、`/research-lit`。默认仍为 Codex xhigh。未安装 = 零影响。[设置 →](#-optional-gpt-55-pro-via-oracle)
 - **2026-04-13** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🔬 **[`/proof-checker`](skills/proof-checker/SKILL.md)** — 严格数学证明验证。20 类问题分类、双轴严重度、侧条件检查表（DCT/MCT/Fubini/IFT/...）、反例红队、证明义务台账。自动集成到工作流 3。
 - **2026-04-10** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) ⚡ **[Effort Levels](skills/shared-references/effort-contract.md)** — `— effort: lite | balanced | max | beast`。控制工作强度。Codex reasoning 永远 `xhigh`。`beast` = 全部拉满。默认 `balanced` = 零变化。
 - **2026-04-10** — ![NEW](https://img.shields.io/badge/NEW-red?style=flat-square) 🔎 **[DeepXiv 集成](skills/deepxiv/SKILL.md)** — 渐进式文献检索。`— sources: deepxiv`。`pip install deepxiv-sdk`。社区贡献 by [@DreamEnding](https://github.com/DreamEnding)
@@ -1156,7 +1156,7 @@ claude   # hooks 立即生效
 
 每个 skill 都接受 `— effort: lite | balanced | max | beast` —— 调节广度/深度(论文 · idea · pilot · 轮次 · seed · 审计深度)从 ~0.4× 到 ~5–8×;**默认 `balanced`**(老用户零变化)。任何档位都**不变**:Codex reasoning 永远 `xhigh`、DBLP 引用永远开、reviewer 独立性永远开、实验诚实度永远开。**📖 完整规范 + 各 skill 计数 → [`effort-contract.md`](skills/shared-references/effort-contract.md)**
 
-<a id="-optional-gpt-54-pro-via-oracle"></a>
+<a id="-optional-gpt-55-pro-via-oracle"></a>
 
 ### 🧿 可选：GPT-5.5 Pro via Oracle
 

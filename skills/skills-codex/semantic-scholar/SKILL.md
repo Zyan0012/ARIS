@@ -27,6 +27,7 @@ This skill is the **published venue** counterpart to `/arxiv`:
   [`shared-references/integration-contract.md`](../shared-references/integration-contract.md) §2
   (Codex-side chain: `$ARIS_REPO/tools/` → `tools/` → `~/.codex/skills/semantic-scholar/`).
   Policy D1 — if unresolved (canonical chain exhausted), fall back to inline Python.
+- **API key env** — Prefer `SEMANTIC_SCHOLAR_API_KEY` for the ARIS-native route. Also accepts `S2_API_KEY`, or the first key from `SEMANTIC_SCHOLAR_API_KEYS` / `S2_API_KEYS`.
 - **DEFAULT_FILTERS** — For general research queries, apply these by default to reduce noise:
   - `--fields-of-study "Computer Science,Engineering"`
   - `--publication-types JournalArticle,Conference`

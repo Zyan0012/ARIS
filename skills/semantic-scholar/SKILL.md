@@ -28,6 +28,7 @@ This skill is the **published venue** counterpart to `/arxiv`:
   (Policy D1 — primary + fallback cascade). If unresolved (canonical
   chain exhausted), fall back to the inline Python alternative
   documented in Step 2.
+- **API key env** — Prefer `SEMANTIC_SCHOLAR_API_KEY` for the ARIS-native route. Also accepts `S2_API_KEY`, or the first key from `SEMANTIC_SCHOLAR_API_KEYS` / `S2_API_KEYS`.
 - **DEFAULT_FILTERS** — For general research queries, apply these by default to reduce noise:
   - `--fields-of-study "Computer Science,Engineering"`
   - `--publication-types JournalArticle,Conference`

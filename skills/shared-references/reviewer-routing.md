@@ -24,6 +24,8 @@ If `— reviewer: oracle-pro`:
     → If available:
         Use mcp__oracle__consult with:
           model: "gpt-5.5-pro"
+          preset: "chatgpt-pro-heavy"
+          browserAttachments: "auto"
           prompt: [same prompt you would send to Codex]
           files: [file paths for reviewer to read directly]
         Note: Oracle may use API mode (fast, needs OPENAI_API_KEY)
@@ -45,10 +47,12 @@ If `— reviewer: oracle-pro`:
 
 ```
 mcp__oracle__consult:
+  preset: "chatgpt-pro-heavy"
   prompt: |
     [role + task + output schema]
     Read all listed files directly.
   model: "gpt-5.5-pro"
+  browserAttachments: "auto"
   files:
     - /absolute/path/to/file1
     - /absolute/path/to/file2

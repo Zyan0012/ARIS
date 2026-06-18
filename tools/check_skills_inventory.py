@@ -55,7 +55,7 @@ REQUIRED_README_ANCHORS = (
     "install-skills",
     "gpu-server-setup",
     "alt-a-glm--gpt",
-    "-optional-gpt-54-pro-via-oracle",
+    "-optional-gpt-55-pro-via-oracle",
     "-research-wiki--persistent-research-memory",
 )
 
