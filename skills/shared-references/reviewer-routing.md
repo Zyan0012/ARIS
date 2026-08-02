@@ -6,9 +6,12 @@ All review calls use **Codex MCP** (`mcp__codex__codex`, default model `gpt-5.5`
 
 This is the default for ALL skills. No parameter, no config, no effort level changes this.
 
-## Optional: GPT-5.5 Pro via Oracle
+## Optional: GPT-5.5 Pro Extended via Oracle
 
 When the user explicitly passes `— reviewer: oracle-pro`, route the review through Oracle MCP instead of Codex MCP.
+ARIS always requests the strongest ChatGPT browser setting for this route:
+**GPT-5.5 Pro + Pro Extended**. Do not use the old `current`/`ignore`
+model-picker workaround unless the user explicitly asks for debugging.
 
 ### Routing Logic (add to any reviewer-invoking skill)
 
@@ -23,13 +26,15 @@ If `— reviewer: oracle-pro`:
     → Check if mcp__oracle__consult tool is available
     → If available:
         Use mcp__oracle__consult with:
-          model: "gpt-5.5-pro"
           preset: "chatgpt-pro-heavy"
+          engine: "browser"
+          model: "gpt-5.5-pro"
+          browserThinkingTime: "extended"
+          browserModelStrategy: "select"
           browserAttachments: "auto"
           prompt: [same prompt you would send to Codex]
           files: [file paths for reviewer to read directly]
-        Note: Oracle may use API mode (fast, needs OPENAI_API_KEY)
-              or browser mode (slow ~1-2 min, needs Chrome + ChatGPT login)
+        Require Oracle's model-selection evidence to show strategy=select and verified=yes.
     → If NOT available:
         Print: "⚠️ Oracle MCP not installed. Falling back to Codex xhigh."
         Use mcp__codex__codex as normal.
@@ -38,9 +43,11 @@ If `— reviewer: oracle-pro`:
 ### Invariants
 
 - `— reviewer: oracle-pro` ONLY takes effect when explicitly passed
+- Oracle route means `gpt-5.5-pro` + browser `Pro Extended`; it never changes the default Codex reviewer
 - Reviewer independence protocol still applies (pass file paths, not summaries)
 - `effort` and `difficulty` are orthogonal — they don't change reviewer backend
 - `beast` mode may RECOMMEND oracle-pro but never requires it
+- `browserThinkingTime: "extended"` is the ChatGPT Pro Extended selector; it is not the same as Codex `effort`
 - Browser mode: acceptable for one-shot reviews; NOT recommended inside multi-round loops (too slow/brittle)
 
 ### Oracle MCP Call Format
@@ -48,15 +55,41 @@ If `— reviewer: oracle-pro`:
 ```
 mcp__oracle__consult:
   preset: "chatgpt-pro-heavy"
+  engine: "browser"
+  model: "gpt-5.5-pro"
+  browserThinkingTime: "extended"
+  browserModelStrategy: "select"
+  browserAttachments: "auto"
   prompt: |
     [role + task + output schema]
     Read all listed files directly.
-  model: "gpt-5.5-pro"
-  browserAttachments: "auto"
   files:
     - /absolute/path/to/file1
     - /absolute/path/to/file2
 ```
+
+If the MCP tool is not exposed but the `oracle` CLI is available and the user
+explicitly requested Oracle, use the same strongest browser route:
+
+```bash
+oracle --engine browser \
+  --model gpt-5.5-pro \
+  --browser-model-strategy select \
+  --browser-thinking-time extended \
+  --browser-attachments auto \
+  --timeout auto \
+  --heartbeat 30 \
+  --wait \
+  --slug "<short-review-slug>" \
+  --write-output ".aris/traces/<skill>/<run>/<NNN>-oracle-pro.response.md" \
+  --prompt "<review prompt>" \
+  --file <paper-or-project-files>
+```
+
+Accept the run as true Oracle Pro only when Oracle reports model-selection
+evidence such as `requested=Pro; resolved=Pro Extended; status=already-selected`
+or `status=switched`; `strategy=select`; `verified=yes`. If selection is not
+verified, do not label the result as Oracle Pro Extended.
 
 ### Skills That Support `— reviewer: oracle-pro`
 

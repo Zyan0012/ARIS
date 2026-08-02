@@ -18,7 +18,7 @@ Given a broad research direction from the user, systematically generate, validat
 - **MAX_PILOT_IDEAS = 3** — Pilot at most 3 ideas in parallel. Additional ideas are validated on paper only.
 - **MAX_TOTAL_GPU_HOURS = 8** — Total GPU budget for all pilots combined.
 - **REVIEWER_MODEL = `gpt-5.5`** — Model used via a secondary Codex agent for brainstorming and review. Must be an OpenAI model (e.g., `gpt-5.5`, `o3`, `gpt-4o`).
-- **REVIEWER_BACKEND = `codex`** — Default: Codex xhigh reviewer through `spawn_agent` / `send_input`. Use `--reviewer: oracle-pro` only when explicitly requested; if Oracle is unavailable, warn and fall back to Codex xhigh.
+- **REVIEWER_BACKEND = `codex`** — Default: Codex xhigh reviewer through `spawn_agent` / `send_input`. Use `--reviewer: oracle-pro` only when explicitly requested; use `--reviewer: claude` only when explicitly requesting the local Claude Code reviewer bridge (GLM when Claude Code is configured to BigModel/Z.ai). If an optional reviewer is unavailable, warn and fall back to Codex xhigh.
 - **OUTPUT_DIR = `idea-stage/`** — All idea-stage outputs go here. Create the directory if it doesn't exist.
 
 > 💡 Override via argument, e.g., `/idea-creator "topic" — pilot budget: 4h per idea, 20h total`.
@@ -76,7 +76,12 @@ Map the research area to understand what exists and where the gaps are.
 
 ### Phase 2: Idea Generation (brainstorm with external LLM)
 
-Use a secondary Codex agent for divergent thinking:
+Resolve the reviewer route before Phase 2:
+- omitted / `reviewer: codex`: use a secondary Codex agent for divergent thinking
+- `--reviewer: oracle-pro` / `reviewer: oracle-pro`: follow `../shared-references/reviewer-routing.md` and use Oracle Pro with the same prompt; because Oracle browser mode may not preserve thread continuity, Phase 4 should make a fresh Oracle call with all context if this route is selected
+- `--reviewer: claude`, `reviewer: claude`, `--reviewer: claude-review`, or `reviewer: claude-review`: use `mcp__claude-review__review_start` with the same prompt, poll `mcp__claude-review__review_status` until `done=true`, and save the completed review thread id for Phase 4; if unavailable, warn and fall back to Codex xhigh
+
+Default Codex route:
 
 ```
 spawn_agent:
@@ -110,9 +115,23 @@ spawn_agent:
     Be creative but grounded. A great idea is one where the answer matters regardless of which way it goes.
 ```
 
-Save the agent id for follow-up.
+Claude route shape:
 
-Save a Review Tracing record for this `spawn_agent` call following `../shared-references/review-tracing.md`, including the landscape summary, prompt summary, raw idea list path, reviewer route, and saved agent id.
+```text
+mcp__claude-review__review_start:
+  prompt: |
+    [same idea-generation prompt]
+
+mcp__claude-review__review_status:
+  jobId: [returned jobId]
+  waitSeconds: 20
+```
+
+Poll until `done=true` and use the completed status payload's `response` as the idea list.
+
+Save the Codex agent id or Claude completed review thread id for follow-up.
+
+Save a Review Tracing record for this reviewer call following `../shared-references/review-tracing.md`, including the landscape summary, prompt summary, raw idea list path, reviewer route, and saved agent/thread/job id.
 
 ### Phase 3: Mechanical consolidation + objective feasibility gate
 
@@ -149,7 +168,7 @@ For each surviving idea, run a deeper evaluation:
 
 1. **Novelty check**: Use the `/novelty-check` workflow (multi-source search + GPT-5.5 cross-verification) for each idea
 
-2. **Critical review**: Use GPT-5.5 via `send_input` (same agent):
+2. **Critical review**: Use the selected reviewer backend. For the default Codex route, use GPT-5.5 via `send_input` (same agent):
    ```text
    send_input:
      target: [saved reviewer id from the earlier idea review]
@@ -163,6 +182,28 @@ For each surviving idea, run a deeper evaluation:
        - How would you rank these for a top venue submission?
        - Which 2-3 would you actually work on?
    ```
+
+   For `claude` / `claude-review`, use the saved completed review thread id:
+   ```text
+   mcp__claude-review__review_reply_start:
+     thread_id: [saved completed review thread id from Phase 2]
+     prompt: |
+       Here are our top ideas after filtering:
+       [paste surviving ideas with novelty check results]
+
+       For each, play devil's advocate:
+       - What's the strongest objection a reviewer would raise?
+       - What's the most likely failure mode?
+       - How would you rank these for a top venue submission?
+       - Which 2-3 would you actually work on?
+
+   mcp__claude-review__review_status:
+     jobId: [returned jobId]
+     waitSeconds: 20
+   ```
+   Poll until `done=true` and use the completed status payload's `response`.
+
+   For `oracle-pro`, make a fresh Oracle MCP review with the top ideas and novelty-check results included in full.
 
 3. **Combine rankings**: Merge your assessment with GPT-5.5's ranking. Select top 2-3 ideas for pilot experiments.
 
@@ -308,4 +349,4 @@ implement                     → write code
 
 ## Review Tracing
 
-After each `spawn_agent` or `send_input` reviewer call, save the trace following `../shared-references/review-tracing.md`. Include the reviewer route, saved agent id, prompt summary, raw output path, selected ideas, and rejected ideas.
+After each `spawn_agent`, `send_input`, `oracle-pro`, or `claude-review` reviewer call, save the trace following `../shared-references/review-tracing.md`. Include the reviewer route, saved agent/thread/job id, prompt summary, raw output path, selected ideas, and rejected ideas.

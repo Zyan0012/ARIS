@@ -32,7 +32,7 @@ User input (PROBLEM + vague APPROACH)
 
 ## Constants
 
-- **REVIEWER_BACKEND = `codex`** - Default reviewer route. If `$ARGUMENTS` explicitly contains `--reviewer: oracle-pro` or `reviewer: oracle-pro`, route reviewer calls through the shared Oracle CLI browser contract in `../shared-references/reviewer-routing.md`. Do not treat a missing Oracle MCP tool as Oracle unavailable; Codex skills use the CLI browser route by default.
+- **REVIEWER_BACKEND = `codex`** - Default reviewer route. If `$ARGUMENTS` explicitly contains `--reviewer: oracle-pro` or `reviewer: oracle-pro`, route reviewer calls through the strongest Oracle browser route (`gpt-5.5-pro` + Pro Extended, `browserModelStrategy: select`) per `../shared-references/reviewer-routing.md`; if `$ARGUMENTS` explicitly contains `--reviewer: claude`, `reviewer: claude`, `--reviewer: claude-review`, or `reviewer: claude-review`, route reviewer calls through `claude-review` MCP per `../shared-references/reviewer-routing.md`. If an optional reviewer is unavailable, warn and fall back to Codex xhigh. `claude-review` uses the local Claude Code backend, so on a BigModel/Z.ai setup it is the GLM reviewer route.
 
 - **REVIEWER_MODEL = `gpt-5.5`** — Reviewer model used via a secondary Codex agent.
 - **MAX_ROUNDS = 5** — Maximum review-revise rounds.
@@ -294,15 +294,28 @@ Use this structure:
 Resolve the reviewer route before sending the review:
 
 - If no reviewer override is present, use the default Codex reviewer pattern below.
-- If `$ARGUMENTS` contains `--reviewer: oracle-pro` or `reviewer: oracle-pro`, follow `../shared-references/reviewer-routing.md` and run the Oracle CLI browser route with a unique slug and `--write-output refine-logs/round-1-oracle-pro.response.md`.
-- Do not check only for `mcp__oracle__consult`. In Codex, Oracle Pro review is available when the `oracle` CLI is available and `oracle --dry-run summary ...` accepts the assembled prompt/files.
-- If the Oracle CLI/browser route fails, write the exact warning and failure reason into `round-1-review.md`, then fall back to the Codex reviewer pattern below.
-- For Oracle review, save the response path and slug in `REFINE_STATE.json`; `agent_id` may be null because browser Oracle runs are one-shot.
-- Browser Pro review is a long-wait route. Use `--timeout auto --heartbeat 30 --wait` and a Codex shell/tool timeout of at least 65 minutes. If the shell/tool call times out while Oracle has a `running` session, reattach with `oracle session <slug> --live --write-output <response-path>` or harvest with `oracle session <slug> --harvest --write-output <response-path>`; do not rerun the prompt or fall back until Oracle records a terminal error.
+- If `$ARGUMENTS` contains `--reviewer: oracle-pro` or `reviewer: oracle-pro`, follow `../shared-references/reviewer-routing.md` and call the strongest Oracle route (`gpt-5.5-pro` + Pro Extended, `browserModelStrategy: select`) with the same prompt and file paths.
+- If Oracle MCP is unavailable, write the warning into `round-1-review.md`, then fall back to the Codex reviewer pattern below.
+- For Oracle review, save the reviewer route and raw response in `REFINE_STATE.json`; `agent_id` may be null because Oracle MCP calls need not preserve a Codex reviewer agent.
+- If `$ARGUMENTS` contains `--reviewer: claude`, `reviewer: claude`, `--reviewer: claude-review`, or `reviewer: claude-review`, follow `../shared-references/reviewer-routing.md` and call `mcp__claude-review__review_start` with the same prompt content, then poll `mcp__claude-review__review_status` until `done=true`. Save the completed review thread id in `REFINE_STATE.json` as the reviewer id for later rounds. If the MCP tools are unavailable, write the warning into `round-1-review.md`, then fall back to the Codex reviewer pattern below.
 
 Send the full proposal to `REVIEWER_MODEL` (GPT-5.5 by default) for an **elegance-first, frontier-aware, method-first** review. The reviewer should spend most of the critique budget on the method itself, not on expanding the experiment menu.
 
 ```
+
+For `claude` / `claude-review`, send the same full review prompt through:
+
+```text
+mcp__claude-review__review_start:
+  prompt: |
+    [same full Phase 2 review prompt]
+
+mcp__claude-review__review_status:
+  jobId: [returned jobId]
+  waitSeconds: 20
+```
+
+Poll until `done=true`. Save the completed review thread id for Phase 4.
 spawn_agent:
   model: REVIEWER_MODEL
   reasoning_effort: xhigh
@@ -482,13 +495,28 @@ Save to `refine-logs/round-N-refinement.md`:
 Use the same reviewer backend selected in Phase 2.
 
 - If the route is `codex`, send the revised proposal back to `REVIEWER_MODEL` in the same agent with `send_input`.
-- If the route is `oracle-pro`, run a new Oracle CLI browser review for each round using the same prompt content, the previous review summary, and the full revised proposal. Use a unique slug such as `research-refine-r<N>-<short-topic>` and `--write-output refine-logs/round-N-oracle-pro.response.md`.
-- Do not mark Oracle unavailable just because no MCP tool is exposed. Only fall back after the CLI browser route itself fails or `oracle --dry-run summary ...` rejects the command.
-- Long silence from GPT-5.5 Pro is pending, not failed. Check `oracle status` and the session meta before deciding to fall back.
+- If the route is `oracle-pro`, run a fresh Oracle MCP review for each round using the same prompt content, the previous review summary, and the full revised proposal.
+- If the route is `claude` / `claude-review`, send the revised proposal through `mcp__claude-review__review_reply_start` using the completed review thread id saved from Phase 2, then poll `mcp__claude-review__review_status` until `done=true`.
+- If Oracle or Claude review MCP is unavailable in a later round, warn and fall back to the Codex reviewer route.
 
 Send the revised proposal back to `REVIEWER_MODEL` in the **same agent**:
 
 ```
+
+For `claude` / `claude-review`, use:
+
+```text
+mcp__claude-review__review_reply_start:
+  thread_id: [saved completed review thread id from Phase 2]
+  prompt: |
+    [same Round N re-evaluation prompt]
+
+mcp__claude-review__review_status:
+  jobId: [returned jobId]
+  waitSeconds: 20
+```
+
+Poll until `done=true` and save the completed response to `refine-logs/round-N-review.md`.
 send_input:
   id: [saved from Phase 2]
   model: REVIEWER_MODEL
@@ -704,8 +732,9 @@ Suggested next step: /experiment-plan
 - **Review the mechanism, not the parts count.** A long module list is not novelty.
 - **Pushback is encouraged.** If reviewer feedback causes drift or unnecessary complexity, argue back with evidence.
 - **ALWAYS use `reasoning_effort: xhigh`** for all Codex review calls.
-- **Oracle route is CLI-first in Codex.** For `--reviewer: oracle-pro`, use `oracle --engine browser --browser-model-strategy ignore --browser-attachments auto --browser-max-concurrent-tabs 3 --model gpt-5.5-pro ...` per `../shared-references/reviewer-routing.md`. A missing Oracle MCP tool is not a valid fallback reason.
-- **Save `agent_id` from Phase 2** and use `send_input` for later rounds.
+- **Oracle route requests Pro Extended.** For `--reviewer: oracle-pro`, use the strongest Oracle route (`gpt-5.5-pro` + Pro Extended, `browserModelStrategy: select`) per `../shared-references/reviewer-routing.md`; if unavailable, warn and fall back to Codex xhigh.
+- **Claude route uses local Claude Code.** For `--reviewer: claude`, use `claude-review` MCP per `../shared-references/reviewer-routing.md`; if Claude Code is configured to GLM, this is the Codex + GLM reviewer route.
+- **Save reviewer continuity id from Phase 2**: Codex route saves `agent_id` and uses `send_input`; Claude route saves completed review thread id and uses `review_reply_start`; Oracle route may use fresh calls.
 - **Do not fabricate results.** Only describe expected evidence and planned experiments.
 - **Be specific about compute and data assumptions.** Vague "we'll train a model" is not enough.
 - **Document everything.** Save every raw review, every anchor check, every simplicity check, and every major method change.

@@ -38,6 +38,7 @@ The goal is not to produce flashy demos. The goal is to produce ideas that are:
 - **REAL_ROBOT_PILOTS = `explicit approval only`** — Never assume physical robot access or approval
 - **AUTO_PROCEED = true** — If user does not respond at checkpoints, proceed with the best sim-first option
 - **REVIEWER_MODEL = `gpt-5.5`** — External reviewer model via a secondary Codex agent
+- **REVIEWER_BACKEND = `codex`** — Default reviewer backend passed to reviewer-aware sub-skills. If `$ARGUMENTS` explicitly contains `--reviewer: oracle-pro`, `reviewer: oracle-pro`, `--reviewer: claude`, `reviewer: claude`, `--reviewer: claude-review`, or `reviewer: claude-review`, preserve that exact override as `REVIEWER_ARG_SUFFIX` and append it to `/idea-creator`, `/novelty-check`, and `/research-review`. The default remains Codex when no override is present.
 - **TARGET_VENUES = CoRL, RSS, ICRA, IROS, RA-L** — Default novelty and reviewer framing
 
 > Override inline, e.g. `/idea-discovery-robot "bimanual manipulation" — only sim ideas, no real robot` or `/idea-discovery-robot "drone navigation" — focus on CoRL/RSS, 2 pilot ideas max`
@@ -139,7 +140,7 @@ Generate ideas only after the robotics frame is explicit.
 Invoke the existing idea generator, but pass the **Robotics Problem Frame** and landscape matrix into the prompt so it does not produce generic ML ideas:
 
 ```
-/idea-creator "$ARGUMENTS — robotics frame: [paste Robotics Problem Frame] — focus venues: CoRL, RSS, ICRA, IROS, RA-L — benchmark-specific ideas only — sim-first pilots — no real-robot execution without explicit approval — require failure metrics and baseline clarity"
+/idea-creator "$ARGUMENTS — robotics frame: [paste Robotics Problem Frame] — focus venues: CoRL, RSS, ICRA, IROS, RA-L — benchmark-specific ideas only — sim-first pilots — no real-robot execution without explicit approval — require failure metrics and baseline clarity $REVIEWER_ARG_SUFFIX"
 ```
 
 Then rewrite and filter the output using the robotics-specific rules below.
@@ -246,7 +247,7 @@ After Phase 3, continue to Phase 4 even if you only produced a pilot plan rather
 For each top idea, run:
 
 ```
-/novelty-check "[idea description with embodiment + task family + benchmark + sensor stack + controller/policy class + sim2real angle + target venues: CoRL/RSS/ICRA/IROS/RA-L]"
+/novelty-check "[idea description with embodiment + task family + benchmark + sensor stack + controller/policy class + sim2real angle + target venues: CoRL/RSS/ICRA/IROS/RA-L] $REVIEWER_ARG_SUFFIX"
 ```
 
 Robotics novelty checks must include:
@@ -269,7 +270,7 @@ If the method is not novel but the **finding** or **evaluation protocol** is, sa
 Invoke:
 
 ```
-/research-review "[top idea with robotics framing, embodiment, benchmark, baselines, pilot plan, evaluation metrics, and sim2real/hardware risks — review as CoRL/RSS/ICRA reviewer]"
+/research-review "[top idea with robotics framing, embodiment, benchmark, baselines, pilot plan, evaluation metrics, and sim2real/hardware risks — review as CoRL/RSS/ICRA reviewer] $REVIEWER_ARG_SUFFIX"
 ```
 
 Frame the reviewer as a senior **CoRL / RSS / ICRA** reviewer. Ask them to focus on:
@@ -359,4 +360,3 @@ If no simulator or benchmark is available yet, stop at the report and ask the us
 > - **[Output Versioning Protocol](../../shared-references/output-versioning.md)** — write timestamped file first, then copy to fixed name
 > - **[Output Manifest Protocol](../../shared-references/output-manifest.md)** — log every output to MANIFEST.md
 > - **[Output Language Protocol](../../shared-references/output-language.md)** — respect the project's language setting
-

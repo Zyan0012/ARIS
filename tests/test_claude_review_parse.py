@@ -192,6 +192,7 @@ class RunClaudeReviewTests(unittest.TestCase):
         called_cmd = run.call_args.args[0]
         self.assertIn("--output-format", called_cmd)
         self.assertEqual(called_cmd[called_cmd.index("--output-format") + 1], "json")
+        self.assertEqual(run.call_args.kwargs["timeout"], 3600)
 
     def test_legacy_ndjson_stdout_maps_correctly_end_to_end(self) -> None:
         """CLI 1.x NDJSON path -> downstream consumer still gets correct fields."""

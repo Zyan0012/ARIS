@@ -37,7 +37,7 @@ CLAUDE_BIN = os.environ.get("CLAUDE_BIN", "claude")
 DEFAULT_MODEL = os.environ.get("CLAUDE_REVIEW_MODEL", "")
 DEFAULT_SYSTEM = os.environ.get("CLAUDE_REVIEW_SYSTEM", "")
 DEFAULT_TOOLS = os.environ.get("CLAUDE_REVIEW_TOOLS", "")
-DEFAULT_TIMEOUT_SEC = int(os.environ.get("CLAUDE_REVIEW_TIMEOUT_SEC", "600"))
+DEFAULT_TIMEOUT_SEC = int(os.environ.get("CLAUDE_REVIEW_TIMEOUT_SEC", "3600"))
 _default_debug_dir = os.environ.get("TEMP", "/tmp") if sys.platform == "win32" else "/tmp"
 DEBUG_LOG = Path(os.environ.get("CLAUDE_REVIEW_DEBUG_LOG", f"{_default_debug_dir}/{SERVER_NAME}-mcp-debug.log"))
 STATE_DIR = Path(

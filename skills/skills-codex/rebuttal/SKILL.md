@@ -41,7 +41,7 @@ Workflow 4:   rebuttal (post-submission external reviews)
 - **VENUE = `ICML`** — Default venue. Override if needed.
 - **RESPONSE_MODE = `TEXT_ONLY`** — v1 default.
 - **REVIEWER_MODEL = `gpt-5.5`** — Used via Codex MCP for internal stress-testing.
-- **REVIEWER_BACKEND = `codex`** — Default: Codex xhigh stress tester. Use `--reviewer: oracle-pro` only when explicitly requested; if Oracle is unavailable, warn and fall back to Codex xhigh. See `../shared-references/reviewer-routing.md`.
+- **REVIEWER_BACKEND = `codex`** — Default: Codex xhigh stress tester. Use `--reviewer: oracle-pro` only when explicitly requested; use `--reviewer: claude` only when explicitly requesting the local Claude Code reviewer bridge (GLM when Claude Code is configured to BigModel/Z.ai). If an optional reviewer is unavailable, warn and fall back to Codex xhigh. See `../shared-references/reviewer-routing.md`.
 - **MAX_INTERNAL_DRAFT_ROUNDS = 2** — draft → lint → revise.
 - **MAX_STRESS_TEST_ROUNDS = 1** — One Codex MCP critique round.
 - **MAX_FOLLOWUP_ROUNDS = 3** — per reviewer thread.
@@ -214,6 +214,11 @@ Run all lints:
 
 ### Phase 6: Codex Reviewer Stress Test
 
+Resolve the reviewer route before the stress test:
+- omitted / `reviewer: codex`: use the default `spawn_agent` route below
+- `--reviewer: oracle-pro` / `reviewer: oracle-pro`: follow `../shared-references/reviewer-routing.md` and use Oracle Pro with the same prompt; if unavailable, warn and fall back to Codex xhigh
+- `--reviewer: claude`, `reviewer: claude`, `--reviewer: claude-review`, or `reviewer: claude-review`: use `mcp__claude-review__review_start` with the same prompt, then poll `mcp__claude-review__review_status` until `done=true`; if unavailable, warn and fall back to Codex xhigh
+
 ```
 spawn_agent:
   reasoning_effort: xhigh
@@ -232,6 +237,20 @@ spawn_agent:
 ```
 
 Save full response to `rebuttal/MCP_STRESS_TEST.md`. If hard safety blocker → revise before finalizing.
+
+Claude route shape:
+
+```text
+mcp__claude-review__review_start:
+  prompt: |
+    [same rebuttal stress-test prompt]
+
+mcp__claude-review__review_status:
+  jobId: [returned jobId]
+  waitSeconds: 20
+```
+
+Poll until `done=true`, save the completed status payload's `response` to `rebuttal/MCP_STRESS_TEST.md`, and record the route as `claude-review`.
 
 ### Phase 7: Finalize — Two Versions
 
@@ -301,4 +320,4 @@ Skip if `RENDER_HTML = false`.
 
 ## Review Tracing
 
-After each `spawn_agent` or `send_input` reviewer call, save the trace following `../shared-references/review-tracing.md`. Write files directly to `.aris/traces/rebuttal/<date>_run<NN>/`. Respect the `--- trace:` parameter when present (default: `full`).
+After each `spawn_agent`, `send_input`, `oracle-pro`, or `claude-review` reviewer call, save the trace following `../shared-references/review-tracing.md`. Write files directly to `.aris/traces/rebuttal/<date>_run<NN>/`. Respect the `--- trace:` parameter when present (default: `full`).

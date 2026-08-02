@@ -99,6 +99,11 @@ Why: in this host path, the review hop is:
 
 That extra local CLI hop is what makes long synchronous reviewer calls more likely to hit the observed Codex-hosted MCP timeout.
 
+The async worker itself has a separate kill timeout. `claude-review` defaults
+`CLAUDE_REVIEW_TIMEOUT_SEC` to `3600` seconds so full-paper reviews have enough
+time to finish. Set that environment variable on the MCP server only when you
+need a shorter or longer ceiling.
+
 ## Project config
 
 No special project config file is required for this path.

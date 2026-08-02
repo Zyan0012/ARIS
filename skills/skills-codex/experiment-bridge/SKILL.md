@@ -21,7 +21,7 @@ refine-logs/FINAL_PROPOSAL.md
 ## Constants
 
 - **AUTO_DEPLOY = true** — Automatically deploy experiments after implementation. Set `false` to review code before deploying.
-- **CODE_REVIEW = true** — Secondary Codex reviewer with xhigh reasoning reviews experiment code before deployment. Catches logic bugs before wasting GPU hours. Set `false` to skip.
+- **CODE_REVIEW = true** — Secondary Codex reviewer with xhigh reasoning reviews experiment code before deployment. Catches logic bugs before wasting GPU hours. Set `false` to skip. If `$ARGUMENTS` explicitly contains `--reviewer: claude`, use the optional `claude-review` MCP route for this code review; otherwise the default remains Codex.
 - **SANITY_FIRST = true** — Run the sanity-stage experiment first (smallest, fastest) before launching the rest. Catches setup bugs early.
 - **MAX_PARALLEL_RUNS = 4** — Maximum number of experiments to deploy in parallel (limited by available GPUs).
 - **BASE_REPO = false** — GitHub repo URL to use as a base codebase. When set, clone it first and implement experiments on top of it.
@@ -106,7 +106,13 @@ For each milestone (in order), write the experiment scripts:
 
 Skip this step if `CODE_REVIEW` is `false`.
 
-Before deploying, send the experiment code to a secondary Codex reviewer with xhigh reasoning:
+Before deploying, send the experiment code to the selected reviewer.
+
+Reviewer routing:
+- omitted / `reviewer: codex`: use the secondary Codex reviewer route below with xhigh reasoning
+- `--reviewer: claude`, `reviewer: claude`, `--reviewer: claude-review`, or `reviewer: claude-review`: use `mcp__claude-review__review_start` with the same prompt, then poll `mcp__claude-review__review_status` until `done=true`; if unavailable, warn and fall back to Codex xhigh
+
+Default Codex route:
 
 ```text
 spawn_agent:
@@ -136,6 +142,20 @@ spawn_agent:
     - Suggested patches or checks
 ```
 
+Claude route shape:
+
+```text
+mcp__claude-review__review_start:
+  prompt: |
+    [same experiment implementation review prompt]
+
+mcp__claude-review__review_status:
+  jobId: [returned jobId]
+  waitSeconds: 20
+```
+
+Poll until `done=true` and use the completed status payload's `response` as the code review.
+
 If BLOCKING issues are found, fix them and re-run this review once before Phase 3. Save the reviewer response and any fixes in `refine-logs/EXPERIMENT_CODE_REVIEW.md`. If reviewer delegation is unavailable, run the same checklist locally and mark the review `[local-only]`.
 
 ### Phase 3: Sanity Check (if SANITY_FIRST = true)
@@ -154,7 +174,7 @@ Wait for completion. Verify:
 
 If sanity fails → fix the code, re-run. Do not proceed to full deployment with broken code.
 
-If the same sanity failure repeats, trigger a second opinion: summarize the plan, code diff, command, logs, backend, and failure, then ask a fresh Codex reviewer agent for a rescue diagnosis. Apply only concrete fixes grounded in the logs.
+If the same sanity failure repeats, trigger a second opinion: summarize the plan, code diff, command, logs, backend, and failure, then ask a fresh reviewer for a rescue diagnosis using the same reviewer route selected for Phase 2.5. Apply only concrete fixes grounded in the logs.
 
 ### Phase 4: Deploy Full Experiments
 

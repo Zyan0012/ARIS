@@ -1,6 +1,6 @@
 ---
 name: "auto-review-loop"
-description: "Autonomous multi-round research review loop. Repeatedly reviews using a secondary Codex agent, implements fixes, and re-reviews until positive assessment or max rounds reached. Use when user says \"auto review loop\", \"review until it passes\", or wants autonomous iterative improvement."
+description: "Autonomous multi-round research review loop. Repeatedly reviews using a secondary Codex agent by default, or Claude Code/GLM when explicitly requested, implements fixes, and re-reviews until positive assessment or max rounds reached. Use when user says \"auto review loop\", \"review until it passes\", or wants autonomous iterative improvement."
 ---
 
 # Auto Review Loop: Autonomous Research Improvement
@@ -16,7 +16,7 @@ Autonomously iterate: review → implement fixes → re-review, until the extern
 - REVIEW_DOC: `review-stage/AUTO_REVIEW.md` (cumulative log) *(fall back to `./AUTO_REVIEW.md` for legacy projects)*
 - **OUTPUT_DIR = `review-stage/`** — All review-stage outputs go here. Create the directory if it doesn't exist.
 - REVIEWER_MODEL = `gpt-5.5` — Model used via a secondary Codex agent. Must be an OpenAI model (e.g., `gpt-5.5`, `o3`, `gpt-4o`)
-- **REVIEWER_BACKEND = `codex`** — Default: Codex reviewer agent at xhigh reasoning. Override with `--reviewer: oracle-pro` only when the user explicitly requests Oracle; if Oracle is unavailable, warn and fall back to Codex xhigh. **Same-family note:** this default reviewer is a second Codex/GPT agent — valid for Type-A completeness/drive review, but not a cross-family Type-B verdict; install a `skills-codex-claude-review` / `skills-codex-gemini-review` overlay for a cross-family acquittal (see `shared-references/reviewer-routing.md`).
+- **REVIEWER_BACKEND = `codex`** — Default: Codex reviewer agent at xhigh reasoning. Override with `--reviewer: oracle-pro` only when the user explicitly requests Oracle; override with `--reviewer: claude` only when the user explicitly requests the local Claude Code reviewer bridge. If an optional reviewer is unavailable, warn and fall back to Codex xhigh. **Same-family note:** this default reviewer is a second Codex/GPT agent — valid for Type-A completeness/drive review, but not a cross-family Type-B verdict. `--reviewer: claude` can satisfy Type-B only when local Claude Code is configured to a non-GPT family model such as GLM.
 - **HUMAN_CHECKPOINT = false** — When `true`, pause after each round's review (Phase B) and present the score + weaknesses to the user. Wait for user input before proceeding to Phase C. The user can: approve the suggested fixes, provide custom modification instructions, skip specific fixes, or stop the loop early. When `false` (default), the loop runs fully autonomously.
 - **COMPACT = false** — When `true`, (1) read `EXPERIMENT_LOG.md` and `findings.md` instead of parsing full logs on session recovery, (2) append key findings to `findings.md` after each round.
 - **REVIEWER_DIFFICULTY = medium** — Controls adversarial depth: `medium` uses normal Codex xhigh review through `spawn_agent` / `send_input`; `hard` adds Reviewer Memory and Debate Protocol; `nightmare` adds direct repository-reading adversarial verification by an independent reviewer.
@@ -26,14 +26,14 @@ Autonomously iterate: review → implement fixes → re-review, until the extern
 
 ## Reviewer Routing
 
-Before Phase A, parse `$ARGUMENTS` for `--reviewer: oracle-pro` or `reviewer: oracle-pro`.
+Before Phase A, parse `$ARGUMENTS` for `--reviewer: oracle-pro`, `reviewer: oracle-pro`, `--reviewer: claude`, `reviewer: claude`, `--reviewer: claude-review`, or `reviewer: claude-review`.
 
 - Default: use the Codex reviewer route (`spawn_agent` / `send_input`) with `reasoning_effort: xhigh`.
-- Oracle override: follow `../shared-references/reviewer-routing.md` and use the CLI browser route: `oracle --engine browser --browser-model-strategy ignore --browser-attachments auto --browser-max-concurrent-tabs 3 --model gpt-5.5-pro --timeout auto --heartbeat 30 --wait ...`.
-- Do not treat a missing `mcp__oracle__consult` tool as Oracle unavailable. In Codex, the normal Oracle Pro route is CLI-browser-first.
-- Browser Pro review is a long-wait route. Use a Codex shell/tool timeout of at least 65 minutes. If the tool call times out while `oracle status` shows the slug as `running`, reattach with `oracle session <slug> --live --write-output <response-path>` or harvest with `oracle session <slug> --harvest --write-output <response-path>`.
-- Only fall back to Codex xhigh after Oracle records a terminal error for that slug and no model is still running. Long silence is pending, not failure.
-- Browser Oracle is best for one-shot stress tests. For multi-round loops, use unique Oracle slugs per round and save each response path; do not assume a persistent `agent_id` exists.
+- Oracle override: follow `../shared-references/reviewer-routing.md` and call Oracle with the strongest browser route (`gpt-5.5-pro` + Pro Extended, `browserModelStrategy: select`).
+- If Oracle MCP is unavailable, print a clear warning and fall back to Codex xhigh.
+- Oracle Pro is best used for deliberate stress tests; it is optional and never the default reviewer route.
+- Claude override: follow `../shared-references/reviewer-routing.md` and call `claude-review` MCP with `mcp__claude-review__review_start` / `mcp__claude-review__review_status` for the first review and `mcp__claude-review__review_reply_start` / `review_status` for follow-up or debate turns. The actual reviewer model is the local Claude Code configuration (for example GLM via BigModel/Z.ai).
+- If `claude-review` MCP is unavailable, print a clear warning and fall back to Codex xhigh. Do not describe that fallback as Claude/GLM review.
 
 ## Claude-Aligned Reviewer Memory and Debate
 
@@ -131,6 +131,33 @@ spawn_agent:
 
 If this is round 2+, use `send_input` with the saved agent id to maintain continuity.
 
+If the selected route is `claude` / `claude-review`, send the same prompt content through the async Claude review bridge instead:
+
+```text
+mcp__claude-review__review_start:
+  prompt: |
+    [same Round N/MAX_ROUNDS review prompt]
+
+mcp__claude-review__review_status:
+  jobId: [returned jobId]
+  waitSeconds: 20
+```
+
+Poll until `done=true`; store the completed review thread id as the reviewer id for recovery. For round 2+, use:
+
+```text
+mcp__claude-review__review_reply_start:
+  thread_id: [saved completed review thread id]
+  prompt: |
+    [same Round N update prompt that would be sent via send_input]
+
+mcp__claude-review__review_status:
+  jobId: [returned jobId]
+  waitSeconds: 20
+```
+
+Poll until `done=true` and treat the completed status payload's `response` as the reviewer output.
+
 ##### Hard — Codex Review + Reviewer Memory
 
 Use the same `spawn_agent` / `send_input` route as medium, but prepend the full `review-stage/REVIEWER_MEMORY.md` contents under `## Your Reviewer Memory (persistent across rounds)` and require a `Memory update` section in the reviewer response.
@@ -204,6 +231,8 @@ send_input:
 
     [paste rebuttal + evidence]
 ```
+
+If the selected route is `claude` / `claude-review`, send the same rebuttal through `mcp__claude-review__review_reply_start` with the saved completed review thread id, then poll `mcp__claude-review__review_status` until `done=true`.
 
 Record a `### Debate Transcript (hard + nightmare only)` section in `review-stage/AUTO_REVIEW.md`. Only mark a weakness resolved if the reviewer accepts the rebuttal.
 
@@ -319,7 +348,7 @@ Increment round counter → back to Phase A.
 
 ## Review Tracing
 
-After every `spawn_agent`, `send_input`, `oracle-pro`, or nightmare adversarial verification call, save a trace following `../shared-references/review-tracing.md`. Include prompt summary, reviewer route, saved agent id, raw response path, score/verdict, accepted fixes, rejected rebuttals, and the `Reviewer Memory` update if present.
+After every `spawn_agent`, `send_input`, `oracle-pro`, `claude-review`, or nightmare adversarial verification call, save a trace following `../shared-references/review-tracing.md`. Include prompt summary, reviewer route, saved agent/thread/job id, raw response path, score/verdict, accepted fixes, rejected rebuttals, and the `Reviewer Memory` update if present.
 
 ### Termination
 
@@ -352,8 +381,8 @@ When loop ends (positive assessment or max rounds):
 
 - **Large file handling**: If the Write tool fails due to file size, immediately retry using Bash (`cat << 'EOF' > file`) to write in chunks. Do NOT ask the user for permission — just do it silently.
 
-- ALWAYS use `reasoning_effort: xhigh` for maximum reasoning depth
-- Save agent id from first call, use `send_input` for subsequent rounds
+- ALWAYS use `reasoning_effort: xhigh` for Codex reviewer calls. Claude review uses the local Claude Code configuration and does not take a Codex `reasoning_effort` parameter.
+- Save reviewer continuity id from the first call: Codex route saves `agent_id` and uses `send_input`; Claude route saves completed review thread id and uses `review_reply_start`; Oracle route may use fresh calls.
 - Be honest — include negative results and failed experiments
 - Do NOT hide weaknesses to game a positive score
 - Implement fixes BEFORE re-reviewing (don't just promise to fix)

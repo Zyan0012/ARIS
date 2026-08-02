@@ -1,8 +1,8 @@
 ---
 name: research-review
-description: Get a deep critical review of research from an external reviewer backend (Codex or manual). Use when user says "review my research", "help me review", "get external review", or wants critical feedback on research ideas, papers, or experimental results.
+description: Get a deep critical review of research from an external reviewer backend (Codex, Oracle Pro, or manual). Use when user says "review my research", "help me review", "get external review", or wants critical feedback on research ideas, papers, or experimental results.
 argument-hint: [topic-or-scope]
-allowed-tools: Bash(*), Read, Grep, Glob, Write, Edit, mcp__codex__codex, mcp__codex__codex-reply, mcp__manual_review__review, mcp__manual_review__review_reply
+allowed-tools: Bash(*), Read, Grep, Glob, Write, Edit, mcp__codex__codex, mcp__codex__codex-reply, mcp__oracle__consult, mcp__manual_review__review, mcp__manual_review__review_reply
 ---
 
 # Research Review via External Reviewer Backend (xhigh reasoning)
@@ -30,6 +30,21 @@ When calling the reviewer, branch on REVIEWER_BACKEND:
   Use `mcp__codex__codex` for new review threads.
   Use `mcp__codex__codex-reply` for follow-up rounds (reuse threadId).
 
+**If REVIEWER_BACKEND = `oracle-pro`:**
+  Use `mcp__oracle__consult` for reviewer calls with:
+    preset: "chatgpt-pro-heavy"
+    engine: "browser"
+    model: "gpt-5.5-pro"
+    browserThinkingTime: "extended"
+    browserModelStrategy: "select"
+    prompt: [exact same substantive prompt that would go to Codex]
+    files: [absolute paths for the paper, report, raw results, and evidence]
+  For follow-up rounds, make a fresh `mcp__oracle__consult` call that includes
+  the previous Oracle response, unresolved issues, and revised files. Do not
+  claim same-thread continuity unless the active Oracle tool explicitly exposes
+  it. If `mcp__oracle__consult` is not exposed in the active session, warn and
+  fall back to the default Codex backend.
+
 **If REVIEWER_BACKEND = `manual`:**
   Use `mcp__manual_review__review` for new review threads with:
     prompt: [exact same prompt that would go to Codex]
@@ -55,6 +70,11 @@ equally to both backends.
   claude mcp add codex -s user -- codex mcp-server
   ```
 - This gives Claude Code access to `mcp__codex__codex` and `mcp__codex__codex-reply` tools
+- Optional Oracle MCP route for `— reviewer: oracle-pro`:
+  ```bash
+  claude mcp add oracle -s user -- oracle-mcp
+  ```
+  Restart the Claude Code session after adding it; running sessions do not see newly registered MCP tools.
 
 ## Workflow
 
@@ -90,6 +110,33 @@ The review brief should contain the full research context, the specific
 questions, and the primary artifact / raw-result paths the reviewer should
 inspect.
 
+*For oracle-pro backend:* use `mcp__oracle__consult` with the strongest ChatGPT
+browser setting (`gpt-5.5-pro` + Pro Extended), attach/pass the same evidence
+files, and keep the prompt content substantively identical to the Codex brief:
+
+```text
+mcp__oracle__consult:
+  preset: "chatgpt-pro-heavy"
+  engine: "browser"
+  model: "gpt-5.5-pro"
+  browserThinkingTime: "extended"
+  browserModelStrategy: "select"
+  files:
+    - /absolute/path/to/RESEARCH_REVIEW_REQUEST.md
+    - /absolute/path/to/paper-or-report
+    - /absolute/path/to/key-evidence
+  prompt: |
+    Read the review brief and listed evidence directly.
+    Executor notes are not evidence beyond the files they cite, so verify the
+    referenced artifacts before judging.
+    Please act as a senior ML reviewer (NeurIPS/ICML level). Identify:
+    1. Logical gaps or unjustified claims
+    2. Missing experiments that would strengthen the story
+    3. Narrative weaknesses
+    4. Whether the contribution is sufficient for a top venue
+    Please be brutally honest.
+```
+
 *For manual backend:* use `mcp__manual_review__review` with the same brief
 contents. If the manual-review UI supports attachments, attach
 `RESEARCH_REVIEW_REQUEST.md`; otherwise paste the brief inline. Save the
@@ -97,6 +144,8 @@ returned `threadId`.
 
 ### Step 3: Iterative Dialogue (Rounds 2-N)
 For `codex` backend: use `mcp__codex__codex-reply` with the returned `threadId`.
+For `oracle-pro` backend: make a fresh `mcp__oracle__consult` call containing
+the prior Oracle response, unresolved issues, and revised evidence files.
 For `manual` backend: use `mcp__manual_review__review_reply` with the same `threadId`.
 Use the appropriate tool to continue the conversation. For Codex follow-up
 rounds, write an updated brief such as `RESEARCH_REVIEW_ROUND_2.md` and send
@@ -155,14 +204,14 @@ Update project memory/notes with key review conclusions.
 
 ## Key Rules
 
-- ALWAYS use `config: {"model_reasoning_effort": "xhigh"}` for reviews
+- ALWAYS use `config: {"model_reasoning_effort": "xhigh"}` for Codex and manual-review calls. Oracle Pro uses `gpt-5.5-pro` with browser `Pro Extended`; it does not take the Codex `effort` setting.
 - Put comprehensive context in the review brief. Codex can read local files
   when you pass an absolute path; manual reviewers usually cannot, so attach or
   paste the same brief there.
 - Be honest about weaknesses — hiding them leads to worse feedback
 - Push back on criticisms you disagree with, but accept valid ones
 - Focus on ACTIONABLE feedback — "what experiment would fix this?"
-- Document the threadId for potential future resumption
+- Document the threadId for backends that return one. For Oracle Pro, document the trace path, mark the route as `oracle-pro` or `codex-fallback`, and record Oracle's model-selection evidence (`strategy=select`, `verified=yes`).
 - The review document should be self-contained (readable without the conversation)
 
 ## Prompt Templates
@@ -184,4 +233,4 @@ Update project memory/notes with key review conclusions.
 
 ## Review Tracing
 
-After each reviewer call (`mcp__codex__codex`, `mcp__codex__codex-reply`, `mcp__manual_review__review`, or `mcp__manual_review__review_reply`), save the trace following `shared-references/review-tracing.md` (Policy C — forensic; never silently skip). Use `save_trace.sh` (resolved per the chain in `shared-references/integration-contract.md` §2) or write files directly to `.aris/traces/<skill>/<date>_run<NN>/`. Respect the `--- trace:` parameter (default: `full`).
+After each reviewer call (`mcp__codex__codex`, `mcp__codex__codex-reply`, `mcp__oracle__consult`, `mcp__manual_review__review`, or `mcp__manual_review__review_reply`), save the trace following `shared-references/review-tracing.md` (Policy C — forensic; never silently skip). Use `save_trace.sh` (resolved per the chain in `shared-references/integration-contract.md` §2) or write files directly to `.aris/traces/<skill>/<date>_run<NN>/`. Respect the `--- trace:` parameter (default: `full`).

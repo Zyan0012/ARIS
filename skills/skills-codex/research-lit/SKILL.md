@@ -17,7 +17,7 @@ Research topic: $ARGUMENTS
 - **SOURCES = `all`** — Which literature sources to search. Options: `zotero`, `obsidian`, `local`, `web`, `semantic-scholar`, `deepxiv`, `exa`, `all`. Full source table and selection rules: see `## Data Sources` below.
 - **ARXIV_DOWNLOAD = false** — When `true`, download top 3-5 most relevant arXiv PDFs to PAPER_LIBRARY after search. When `false` (default), only fetch metadata (title, abstract, authors) via arXiv API — no files are downloaded.
 - **ARXIV_MAX_DOWNLOAD = 5** — Maximum number of PDFs to download when `ARXIV_DOWNLOAD = true`.
-- **REVIEWER_BACKEND = `codex`** — Default reviewer route for optional literature synthesis cross-checks. Use `--reviewer: oracle-pro` only when explicitly requested; if Oracle is unavailable, warn and continue with Codex xhigh or local synthesis.
+- **REVIEWER_BACKEND = `codex`** — Default reviewer route for optional literature synthesis cross-checks. Use `--reviewer: oracle-pro` only when explicitly requested; use `--reviewer: claude` only when explicitly requesting the local Claude Code reviewer bridge (GLM when Claude Code is configured to BigModel/Z.ai). If an optional reviewer is unavailable, warn and continue with Codex xhigh or local synthesis. See `../shared-references/reviewer-routing.md`.
 
 > 💡 Overrides:
 > - `/research-lit "topic" — paper library: ~/my_papers/` — custom local PDF path
@@ -351,3 +351,4 @@ If the wiki path or format is unclear, ask before writing. Do not invent a wiki 
 - If a user-requested Zotero or Obsidian source is unavailable, stop and report the missing configuration instead of silently degrading.
 - Only unrequested optional sources may be skipped automatically.
 - Zotero/Obsidian tools may have different names depending on how the user configured the MCP server (e.g., `mcp__zotero__search` or `mcp__zotero-mcp__search_items`). Try the most common patterns and adapt.
+- If an optional synthesis cross-check is run, parse reviewer overrides consistently with `../shared-references/reviewer-routing.md`: default Codex xhigh, `--reviewer: oracle-pro` for Oracle Pro Extended, and `--reviewer: claude` for `claude-review` MCP. Do not let these reviewer settings change the literature search sources or paper-fetching behavior.

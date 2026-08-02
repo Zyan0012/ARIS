@@ -15,7 +15,7 @@ Systematically verify a mathematical proof via cross-model adversarial review, f
 
 - MAX_REVIEW_ROUNDS = 3
 - REVIEWER_MODEL = `gpt-5.5` via Codex reviewer agent, reasoning effort always `xhigh`
-- **REVIEWER_BACKEND = `codex`** — Default: Codex reviewer agent (`spawn_agent`, xhigh). Override with `— reviewer: oracle-pro` for GPT-5.5 Pro via the Oracle browser CLI route. See `shared-references/reviewer-routing.md`.
+- **REVIEWER_BACKEND = `codex`** — Default: Codex reviewer agent (`spawn_agent`, xhigh). Override with `— reviewer: oracle-pro` for GPT-5.5 Pro Extended via Oracle MCP/CLI, or `--reviewer: claude` for the local Claude Code reviewer bridge (GLM when Claude Code is configured to BigModel/Z.ai). See `shared-references/reviewer-routing.md`.
 - AUDIT_DOC: `PROOF_AUDIT.md` at the paper directory root, alongside `main.tex` (cumulative log; when invoked via `/paper-writing`, this is `paper/PROOF_AUDIT.md`)
 - REPORT_TEX: `proof_audit_report.tex` (formal before/after PDF)
 - STATE_FILE: `PROOF_CHECK_STATE.json` (for recovery)
@@ -176,9 +176,14 @@ h_act = Θ(κ^α)  [as κ→0, uniform in π on compact subsets of Π_K, for fix
 ```
 Flag any statement where limit order is ambiguous or uniformity is unclear.
 
-### Phase 1: First Review (Codex GPT-5.5 xhigh)
+### Phase 1: First Review (Codex by default; optional Oracle or Claude)
 
 Submit the **complete proof content** with the following **mandatory reviewer checklist** in the prompt:
+
+Before submitting, parse `$ARGUMENTS` for reviewer overrides:
+- omitted / `reviewer: codex`: use the default `spawn_agent` route below
+- `--reviewer: oracle-pro` / `reviewer: oracle-pro`: use the Oracle Pro route in `shared-references/reviewer-routing.md` with the same prompt and files; if unavailable, warn and fall back to Codex xhigh
+- `--reviewer: claude`, `reviewer: claude`, `--reviewer: claude-review`, or `reviewer: claude-review`: use `mcp__claude-review__review_start` with the same prompt, then poll `mcp__claude-review__review_status` until `done=true`; if unavailable, warn and fall back to Codex xhigh
 
 ```text
 spawn_agent:
@@ -222,6 +227,20 @@ spawn_agent:
 
     [FULL PROOF CONTENT HERE]
 ```
+
+Claude route shape:
+
+```text
+mcp__claude-review__review_start:
+  prompt: |
+    [same full proof-review prompt]
+
+mcp__claude-review__review_status:
+  jobId: [returned jobId]
+  waitSeconds: 20
+```
+
+Poll until `done=true` and use the completed status payload's `response` as the reviewer output. Save the completed review thread id for traceability, but keep proof-checker review rounds independent unless a future version explicitly needs same-thread follow-up.
 
 **Save the reviewer `agent_id`.** Parse into structured issue list. Write to `PROOF_AUDIT.md`.
 
@@ -292,9 +311,11 @@ Log this choice — it is a scope-changing decision when it alters theorem state
 pdflatex -interaction=nonstopmode <file>.tex 2>&1 | grep -E "Error|Warning|undefined"
 ```
 
-### Phase 3: Re-Review (Codex GPT-5.5 xhigh)
+### Phase 3: Re-Review (same selected reviewer backend)
 
 Launch a fresh reviewer agent for the next review round. Do not use `send_input` here; proof-checker keeps each round independent. Request the same mandatory checklist.
+
+If the selected route is `claude` / `claude-review`, launch a fresh `mcp__claude-review__review_start` call for each re-review round with the same mandatory checklist and the updated proof content, then poll `mcp__claude-review__review_status` until `done=true`.
 
 Check acceptance gate. If not met, repeat Phases 2-3 (up to MAX_REVIEW_ROUNDS).
 
@@ -322,6 +343,8 @@ spawn_agent:
     illegal interchanges, and counterexamples.
     [FIXED SECTION ONLY]
 ```
+
+If the selected route is `claude` / `claude-review`, use a fresh `mcp__claude-review__review_start` call for this blind review as well, then poll `mcp__claude-review__review_status` until `done=true`.
 
 If the blind reviewer finds new issues, re-enter Phase 2.
 
@@ -387,9 +410,9 @@ Write `PROOF_CHECK_STATE.json`:
 
 ### Cross-model protocol
 - **Claude analyzes, Codex reviews**: Claude reads proof, formulates questions, implements fixes. Codex provides adversarial review.
-- **Codex reasoning always xhigh**: Never downgrade.
+- **Codex reasoning always xhigh**: Never downgrade Codex reviewer calls. Claude review uses the local Claude Code configuration and does not take a Codex `reasoning_effort` parameter.
 - **Send full content**: Don't summarize — send actual math for line-by-line checking.
-- **Fresh reviewer agents**: Save each returned `agent_id` for traceability, but launch a new `spawn_agent` for each review round. Do not use `send_input` across proof-checker rounds.
+- **Fresh reviewer agents**: Save each returned Codex `agent_id` or Claude completed review thread id for traceability, but launch a new `spawn_agent` / `review_start` for each review round. Do not use `send_input` / `review_reply_start` across proof-checker rounds.
 
 ### Fix quality
 - **Minimal fixes**: Fix exactly what's broken, nothing more.
@@ -480,7 +503,8 @@ must carry an explicit justification in `summary` + `details.issues`.
 
 ### Thread independence
 
-Every invocation uses a fresh reviewer agent. Never use `send_input` across
+Every invocation uses a fresh reviewer agent. Never use `send_input` or
+`review_reply_start` across
 proof-checker runs. Do not accept prior audit outputs
 (PAPER_CLAIM_AUDIT, CITATION_AUDIT, EXPERIMENT_LOG) as input — the fresh
 thread preserves reviewer independence per

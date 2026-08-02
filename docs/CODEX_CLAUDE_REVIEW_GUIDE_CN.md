@@ -99,6 +99,10 @@ codex -C /path/to/your/project
 
 多出来的本地 CLI hop，正是长同步 reviewer 调用更容易撞上 Codex 侧 MCP 超时的主要原因。
 
+异步 worker 自己还有一层独立的 kill timeout。`claude-review` 默认
+`CLAUDE_REVIEW_TIMEOUT_SEC=3600`，给整篇论文级审稿留出 1 小时；只有在你
+明确想更短或更长时，才需要在 MCP server 环境变量里覆盖它。
+
 ## 项目配置
 
 这条路径不要求你新建特殊项目配置文件。

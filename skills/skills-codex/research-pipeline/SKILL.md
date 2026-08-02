@@ -13,6 +13,7 @@ End-to-end autonomous research workflow for: **$ARGUMENTS**
 - **ARXIV_DOWNLOAD = false** — When `true`, `/research-lit` downloads the top relevant arXiv PDFs during literature survey. When `false` (default), only fetches metadata via arXiv API. Passed through to `/idea-discovery` → `/research-lit`.
 - **HUMAN_CHECKPOINT = false** — When `true`, the auto-review loops (Stage 3) pause after each round's review to let you see the score and provide custom modification instructions before fixes are implemented. When `false` (default), loops run fully autonomously. Passed through to `/auto-review-loop`.
 - **REVIEWER_DIFFICULTY = medium** — How adversarial the reviewer is. `medium` (default): standard MCP review. `hard`: adds **Reviewer Memory** + **Debate Protocol**. `nightmare`: GPT reads repo directly via `codex exec` + memory + debate. Passed through to `/auto-review-loop`.
+- **REVIEWER_BACKEND = `codex`** — Default reviewer backend for reviewer-aware stages. If `$ARGUMENTS` explicitly contains `--reviewer: oracle-pro`, `reviewer: oracle-pro`, `--reviewer: claude`, `reviewer: claude`, `--reviewer: claude-review`, or `reviewer: claude-review`, preserve that exact override as `REVIEWER_ARG_SUFFIX` and append it to `/idea-discovery`, `/experiment-bridge`, and `/auto-review-loop`. The default remains Codex when no override is present.
 - **CODE_REVIEW = true** — GPT-5.5 xhigh reviews experiment code before deployment. Catches logic bugs before wasting GPU hours. Set `false` to skip. Passed through to `/experiment-bridge`.
 - **BASE_REPO = false** — GitHub repo URL to use as base codebase. When set, `/experiment-bridge` clones the repo first and implements experiments on top of it. When `false` (default), writes code from scratch or reuses existing project files. Passed through to `/experiment-bridge`.
 - **COMPACT = false** — When `true`, generates compact summary files for short-context models and session recovery. Passed through to `/idea-discovery` and `/experiment-bridge`.
@@ -42,7 +43,7 @@ If `RESEARCH_BRIEF.md` exists in the project root, it will be automatically load
 Invoke the idea discovery pipeline:
 
 ```
-/idea-discovery "$ARGUMENTS"
+/idea-discovery "$ARGUMENTS $REVIEWER_ARG_SUFFIX"
 ```
 
 This internally runs: `/research-lit` → `/idea-creator` → `/novelty-check` → `/research-review`
@@ -80,7 +81,7 @@ Recommended: Idea 1. Shall I proceed with implementation?
 Once the user confirms which idea to pursue, delegate implementation and deployment to `/experiment-bridge`:
 
 ```
-/experiment-bridge "$CHOSEN_IDEA_TITLE" — code review: $CODE_REVIEW, base repo: $BASE_REPO, compact: $COMPACT
+/experiment-bridge "$CHOSEN_IDEA_TITLE" — code review: $CODE_REVIEW, base repo: $BASE_REPO, compact: $COMPACT $REVIEWER_ARG_SUFFIX
 ```
 
 > 💡 **Queue routing is automatic**: `/experiment-bridge` Phase 4 routes each milestone by job count — ≤5 jobs → `/run-experiment`, ≥10 jobs or teacher→student phase dependencies → `/experiment-queue` (with OOM retry, wave gating, crash-safe state). No manual override is needed.
@@ -112,7 +113,7 @@ Wait for `/experiment-bridge` to complete and report its handoff summary before 
 Once initial results are in, start the autonomous improvement loop:
 
 ```
-/auto-review-loop "$ARGUMENTS — [chosen idea title], difficulty: $REVIEWER_DIFFICULTY"
+/auto-review-loop "$ARGUMENTS — [chosen idea title], difficulty: $REVIEWER_DIFFICULTY $REVIEWER_ARG_SUFFIX"
 ```
 
 **What this does (up to 4 rounds):**

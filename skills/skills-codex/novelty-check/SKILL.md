@@ -10,7 +10,7 @@ Check whether a proposed method/idea has already been done in the literature: **
 ## Constants
 
 - REVIEWER_MODEL = `gpt-5.5` — Model used via a secondary Codex agent. Must be an OpenAI model (e.g., `gpt-5.5`, `o3`, `gpt-4o`)
-- **REVIEWER_BACKEND = `codex`** — Default: Codex xhigh reviewer. Use `--reviewer: oracle-pro` only when explicitly requested; if Oracle is unavailable, warn and fall back to Codex xhigh.
+- **REVIEWER_BACKEND = `codex`** — Default: Codex xhigh reviewer. Use `--reviewer: oracle-pro` only when explicitly requested; use `--reviewer: claude` only when explicitly requesting the local Claude Code reviewer bridge (GLM when Claude Code is configured to BigModel/Z.ai). If an optional reviewer is unavailable, warn and fall back to Codex xhigh.
 
 ## Instructions
 
@@ -40,14 +40,34 @@ For EACH core claim, search using ALL available sources:
 3. **Read abstracts**: For each potentially overlapping paper, WebFetch its abstract and related work section
 
 ### Phase C: Cross-Model Verification
-Call REVIEWER_MODEL via `spawn_agent` (`spawn_agent`) with xhigh reasoning:
+Parse `$ARGUMENTS` for reviewer overrides before calling the verifier:
+- omitted / `reviewer: codex`: call REVIEWER_MODEL via `spawn_agent` with xhigh reasoning
+- `--reviewer: oracle-pro` / `reviewer: oracle-pro`: follow `../shared-references/reviewer-routing.md` and use Oracle Pro with the same prompt; if unavailable, warn and fall back to Codex xhigh
+- `--reviewer: claude`, `reviewer: claude`, `--reviewer: claude-review`, or `reviewer: claude-review`: use `mcp__claude-review__review_start` with the same prompt, then poll `mcp__claude-review__review_status` until `done=true`; if unavailable, warn and fall back to Codex xhigh
+
+Default Codex route:
 ```
+spawn_agent:
 reasoning_effort: xhigh
 ```
 Prompt should include:
 - The proposed method description
 - All papers found in Phase B
 - Ask: "Is this method novel? What is the closest prior work? What is the delta?"
+
+Claude route shape:
+
+```text
+mcp__claude-review__review_start:
+  prompt: |
+    [same novelty verification prompt]
+
+mcp__claude-review__review_status:
+  jobId: [returned jobId]
+  waitSeconds: 20
+```
+
+Poll until `done=true` and use the completed status payload's `response` as the novelty verifier output.
 
 ### Phase D: Novelty Report
 Output a structured report:
@@ -86,4 +106,4 @@ Output a structured report:
 
 ## Review Tracing
 
-After each `spawn_agent` or optional `oracle-pro` reviewer call, save the trace following `../shared-references/review-tracing.md`. Write files directly to `.aris/traces/novelty-check/<date>_run<NN>/` and record searched claims, closest papers, reviewer route, raw response, and final novelty decision. Respect the `--- trace:` parameter when present (default: `full`).
+After each `spawn_agent` or optional `oracle-pro` / `claude-review` reviewer call, save the trace following `../shared-references/review-tracing.md`. Write files directly to `.aris/traces/novelty-check/<date>_run<NN>/` and record searched claims, closest papers, reviewer route, raw response, and final novelty decision. Respect the `--- trace:` parameter when present (default: `full`).

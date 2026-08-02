@@ -1,8 +1,8 @@
 ---
 name: research-review
-description: "Get a deep critical review of research from GPT via `codex-review` MCP. Use when user says \\\"review my research\\\", \\\"help me review\\\", \\\"get external review\\\", or wants critical feedback on research ideas, papers, or experimental results."
+description: "Get a deep critical review of research from GPT via `codex-review` MCP by default, or Oracle Pro when explicitly requested. Use when user says \\\"review my research\\\", \\\"help me review\\\", \\\"get external review\\\", or wants critical feedback on research ideas, papers, or experimental results."
 argument-hint: [topic-or-scope]
-allowed-tools: Bash(*), Read, Grep, Glob, Write, Edit, Agent, mcp__codex-review__review, mcp__codex-review__review_reply, mcp__codex-review__review_start, mcp__codex-review__review_reply_start, mcp__codex-review__review_status
+allowed-tools: Bash(*), Read, Grep, Glob, Write, Edit, Agent, mcp__codex-review__review, mcp__codex-review__review_reply, mcp__codex-review__review_start, mcp__codex-review__review_reply_start, mcp__codex-review__review_status, mcp__oracle__consult
 ---
 
 > Override for Claude Code users who want long Codex reviews to run through the local `codex-review` MCP bridge with async polling instead of direct synchronous `codex` MCP calls. Install this package **after** `skills/*`.
@@ -14,6 +14,7 @@ Get a multi-round critical review of research work from an external LLM with max
 ## Constants
 
 - REVIEWER_MODEL = `gpt-5.4` — Model used via `codex-review` MCP. Must be an OpenAI model (e.g., `gpt-5.4`, `o3`, `gpt-4o`)
+- **REVIEWER_BACKEND = `codex-review`** — Default: async Codex reviewer bridge. Use `--reviewer: oracle-pro` only when explicitly requested; route that through Oracle MCP with the strongest ChatGPT browser setting (`gpt-5.5-pro` + Pro Extended, `browserModelStrategy: select`) when the tool is exposed in the active Claude Code session. If Oracle is unavailable, warn and fall back to the default `codex-review` route.
 
 ## Context: $ARGUMENTS
 
@@ -28,6 +29,11 @@ Get a multi-round critical review of research work from an external LLM with max
   claude mcp add codex-review -s user -- python3 ~/.claude/mcp-servers/codex-review/server.py
   ```
 - This gives Claude Code access to `mcp__codex-review__review`, `mcp__codex-review__review_reply`, `mcp__codex-review__review_start`, `mcp__codex-review__review_reply_start`, and `mcp__codex-review__review_status`.
+- Optional Oracle MCP route for `--reviewer: oracle-pro`:
+  ```bash
+  claude mcp add oracle -s user -- oracle-mcp
+  ```
+  Restart the Claude Code session after adding it; already-running sessions do not see newly registered MCP tools.
 
 
 ## Workflow
@@ -39,7 +45,37 @@ Before calling the external reviewer, compile a comprehensive briefing:
 3. Identify: core claims, methodology, key results, known weaknesses
 
 ### Step 2: Initial Review (Round 1)
-Send a detailed prompt with xhigh reasoning:
+Parse `$ARGUMENTS` before the first reviewer call.
+
+If `--reviewer: oracle-pro` or `reviewer: oracle-pro` is explicitly present
+and `mcp__oracle__consult` is available, send the detailed prompt to Oracle
+MCP:
+
+```text
+mcp__oracle__consult:
+  preset: "chatgpt-pro-heavy"
+  engine: "browser"
+  model: "gpt-5.5-pro"
+  browserThinkingTime: "extended"
+  browserModelStrategy: "select"
+  files:
+    - /absolute/path/to/primary-paper-or-report
+    - /absolute/path/to/key-evidence
+  prompt: |
+    [Full research context + specific questions]
+    Please act as a senior ML reviewer (NeurIPS/ICML level). Identify:
+    1. Logical gaps or unjustified claims
+    2. Missing experiments that would strengthen the story
+    3. Narrative weaknesses
+    4. Whether the contribution is sufficient for a top venue
+    Please be brutally honest.
+```
+
+If `oracle-pro` was requested but `mcp__oracle__consult` is not available,
+print a clear warning and use the default async `codex-review` route below.
+Do not describe the fallback result as a true Oracle Pro review.
+
+Default route:
 
 ```
 mcp__codex-review__review_start:
@@ -56,7 +92,12 @@ mcp__codex-review__review_start:
 After this start call, immediately save the returned `jobId` and poll `mcp__codex-review__review_status` with a bounded `waitSeconds` until `done=true`. Treat the completed status payload's `response` as the reviewer output, and save the completed `threadId` for any follow-up round.
 
 ### Step 3: Iterative Dialogue (Rounds 2-N)
-Use `mcp__codex-review__review_reply_start` with the saved completed `threadId`, then poll `mcp__codex-review__review_status` with the returned `jobId` until `done=true` to continue the conversation:
+For `oracle-pro`, make a fresh `mcp__oracle__consult` call for each follow-up
+round. Include the previous Oracle response, unresolved issues, and revised
+files in the prompt/files list. Do not claim same-thread continuity unless the
+active Oracle tool explicitly exposes it.
+
+For the default route, use `mcp__codex-review__review_reply_start` with the saved completed `threadId`, then poll `mcp__codex-review__review_status` with the returned `jobId` until `done=true` to continue the conversation:
 
 For each round:
 1. **Respond** to criticisms with evidence/counterarguments
@@ -88,12 +129,12 @@ Update project memory/notes with key review conclusions.
 
 ## Key Rules
 
-- Always ask the Codex reviewer for strict, high-rigor feedback. Override `CODEX_REVIEW_MODEL` when your provider requires a specific supported model.
+- Always ask the reviewer for strict, high-rigor feedback. Override `CODEX_REVIEW_MODEL` when your provider requires a specific supported model. Oracle Pro uses `gpt-5.5-pro` with browser `Pro Extended`; it does not use the Codex `effort` setting.
 - Send comprehensive context in Round 1 — the external model cannot read your files
 - Be honest about weaknesses — hiding them leads to worse feedback
 - Push back on criticisms you disagree with, but accept valid ones
 - Focus on ACTIONABLE feedback — "what experiment would fix this?"
-- Document the threadId for potential future resumption
+- Document the threadId for backends that return one. For Oracle Pro, document the trace path, mark the actual route as `oracle-pro` or `codex-review-fallback`, and record Oracle's model-selection evidence (`strategy=select`, `verified=yes`).
 - The review document should be self-contained (readable without the conversation)
 
 ## Prompt Templates

@@ -26,6 +26,7 @@ Each phase builds on the previous one's output. The final deliverables are a val
 - **MAX_TOTAL_GPU_HOURS = 8** — Total GPU budget across all pilots. If exceeded, skip remaining pilots and note in report.
 - **AUTO_PROCEED = true** — If user doesn't respond at a checkpoint, automatically proceed with the best option after presenting results. Set to `false` to always wait for explicit user confirmation.
 - **REVIEWER_MODEL = `gpt-5.5`** — Model used via a secondary Codex agent. Must be an OpenAI model (e.g., `gpt-5.5`, `o3`, `gpt-4o`). Passed to sub-skills.
+- **REVIEWER_BACKEND = `codex`** — Default reviewer backend passed to reviewer-aware sub-skills. If `$ARGUMENTS` explicitly contains `--reviewer: oracle-pro`, `reviewer: oracle-pro`, `--reviewer: claude`, `reviewer: claude`, `--reviewer: claude-review`, or `reviewer: claude-review`, preserve that exact override as `REVIEWER_ARG_SUFFIX` and append it to `/idea-creator`, `/novelty-check`, `/research-review`, and `/research-refine-pipeline`. The default remains Codex when no override is present.
 - **ARXIV_DOWNLOAD = false** — When `true`, `/research-lit` downloads the top relevant arXiv PDFs during Phase 1. When `false` (default), only fetches metadata. Passed through to `/research-lit`.
 - **COMPACT = false** — When `true`, generate compact summary files for short-context sessions and downstream skills. Writes `idea-stage/IDEA_CANDIDATES.md`.
 - **OUTPUT_DIR = `idea-stage/`** — All idea-stage outputs go here. Create the directory if it doesn't exist.
@@ -140,7 +141,7 @@ Does this match your understanding? Should I adjust the scope before generating 
 Invoke `/idea-creator` with the landscape context and `idea-stage/REF_PAPER_SUMMARY.md` if available:
 
 ```
-/idea-creator "$ARGUMENTS"
+/idea-creator "$ARGUMENTS $REVIEWER_ARG_SUFFIX"
 ```
 
 **What this does:**
@@ -174,8 +175,8 @@ Which ideas should I validate further? Or should I regenerate with different con
 For each top idea (positive pilot signal), run a thorough novelty check:
 
 ```
-/novelty-check "[top idea 1 description]"
-/novelty-check "[top idea 2 description]"
+/novelty-check "[top idea 1 description] $REVIEWER_ARG_SUFFIX"
+/novelty-check "[top idea 2 description] $REVIEWER_ARG_SUFFIX"
 ```
 
 **What this does:**
@@ -191,7 +192,7 @@ For each top idea (positive pilot signal), run a thorough novelty check:
 For the surviving top idea(s), get brutal feedback:
 
 ```
-/research-review "[top idea with hypothesis + pilot results]"
+/research-review "[top idea with hypothesis + pilot results] $REVIEWER_ARG_SUFFIX"
 ```
 
 **What this does:**
@@ -206,7 +207,7 @@ For the surviving top idea(s), get brutal feedback:
 After review, refine the top idea into a concrete proposal and plan experiments:
 
 ```
-/research-refine-pipeline "[top idea description + pilot results + reviewer feedback]"
+/research-refine-pipeline "[top idea description + pilot results + reviewer feedback] $REVIEWER_ARG_SUFFIX"
 ```
 
 **What this does:**

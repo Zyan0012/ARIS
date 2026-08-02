@@ -27,7 +27,7 @@ This follows `shared-references/reviewer-independence.md` and `shared-references
 
 ## Constants
 
-- **REVIEWER_BACKEND = `codex`** — Default: Codex reviewer agent (`spawn_agent`, xhigh). Override with `— reviewer: oracle-pro` for GPT-5.5 Pro via the Oracle browser CLI route. See `shared-references/reviewer-routing.md`.
+- **REVIEWER_BACKEND = `codex`** — Default: Codex reviewer agent (`spawn_agent`, xhigh). Override with `— reviewer: oracle-pro` for GPT-5.5 Pro Extended via Oracle MCP/CLI, or `--reviewer: claude` for the local Claude Code reviewer bridge (GLM when Claude Code is configured to BigModel/Z.ai). See `shared-references/reviewer-routing.md`.
 
 ## Workflow
 
@@ -47,9 +47,14 @@ Scan project directory for:
 
 **DO NOT summarize, interpret, or explain any file content.** Only collect paths.
 
-### Step 2: Send to Reviewer (GPT-5.5 via Codex MCP)
+### Step 2: Send to Reviewer (Codex by default; optional Oracle or Claude)
 
 Pass ONLY file paths and the audit checklist to the reviewer. The reviewer reads everything directly.
+
+Before sending, parse `$ARGUMENTS` for reviewer overrides:
+- omitted / `reviewer: codex`: use the default `spawn_agent` route below
+- `--reviewer: oracle-pro` / `reviewer: oracle-pro`: use the Oracle Pro route in `shared-references/reviewer-routing.md` with the same prompt and file paths; if unavailable, warn and fall back to Codex xhigh
+- `--reviewer: claude`, `reviewer: claude`, `--reviewer: claude-review`, or `reviewer: claude-review`: use `mcp__claude-review__review_start` with the same prompt, then poll `mcp__claude-review__review_status` until `done=true`; if unavailable, warn and fall back to Codex xhigh
 
 ```text
 spawn_agent:
@@ -123,6 +128,20 @@ spawn_agent:
     
     Be thorough. Read every eval script line by line.
 ```
+
+Claude route shape:
+
+```text
+mcp__claude-review__review_start:
+  prompt: |
+    [same full experiment integrity audit prompt]
+
+mcp__claude-review__review_status:
+  jobId: [returned jobId]
+  waitSeconds: 20
+```
+
+Poll until `done=true` and use the completed status payload's `response` as the auditor response.
 
 ### Step 3: Parse and Write Report (Executor — Claude)
 
@@ -250,7 +269,7 @@ if EXPERIMENT_AUDIT.json exists AND integrity_status == "fail":
 - **Reviewer independence**: executor collects paths, reviewer judges. Period.
 - **Never block**: warn loudly, never halt the pipeline.
 - **File-as-switch**: no EXPERIMENT_AUDIT.md = skill was never run = zero impact on existing behavior.
-- **Cross-model**: the reviewer MUST be a different model family from the executor.
+- **Cross-model**: the reviewer MUST be a different model family from the executor for Type-B acceptance. Default Codex reviewer is Type-A when Codex is the executor; `--reviewer: claude` is Type-B only if the local Claude Code backend is non-GPT (for example GLM).
 - **Honest about limits**: the audit catches common patterns, not all possible fraud. It is a safety net, not a guarantee.
 
 ## Acknowledgements
@@ -259,4 +278,4 @@ Motivated by community-reported integrity issues (#57, #131) where executor agen
 
 ## Review Tracing
 
-After each reviewer agent call, save the trace following `shared-references/review-tracing.md` (Policy C — forensic; never silently skip). Use `save_trace.sh` (resolved per the chain in `shared-references/integration-contract.md` §2) or write files directly to `.aris/traces/<skill>/<date>_run<NN>/`. Respect the `--- trace:` parameter (default: `full`).
+After each reviewer agent/MCP call, save the trace following `shared-references/review-tracing.md` (Policy C — forensic; never silently skip). Use `save_trace.sh` (resolved per the chain in `shared-references/integration-contract.md` §2) or write files directly to `.aris/traces/<skill>/<date>_run<NN>/`. Respect the `--- trace:` parameter (default: `full`). Record whether the actual route was `codex`, `oracle-pro`, `claude-review`, or a fallback.

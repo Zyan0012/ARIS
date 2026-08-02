@@ -32,7 +32,9 @@ Do not plan a large experiment suite on top of an unstable method. First stabili
 
 ## Reviewer Routing
 
-If `$ARGUMENTS` contains `--reviewer: oracle-pro` or `reviewer: oracle-pro`, propagate that reviewer override into the internal `research-refine` stage. The pipeline must follow `../shared-references/reviewer-routing.md`: in Codex, Oracle Pro review is CLI-browser-first (`oracle --engine browser ... --model gpt-5.5-pro`), not MCP-tool-first. Do not fall back merely because `mcp__oracle__consult` is not exposed.
+If `$ARGUMENTS` contains `--reviewer: oracle-pro` or `reviewer: oracle-pro`, propagate that reviewer override into the internal `research-refine` stage. The pipeline must follow `../shared-references/reviewer-routing.md`: use the strongest Oracle route (`gpt-5.5-pro` + Pro Extended, `browserModelStrategy: select`) when available; otherwise print a clear warning and fall back to Codex xhigh.
+
+If `$ARGUMENTS` contains `--reviewer: claude`, `reviewer: claude`, `--reviewer: claude-review`, or `reviewer: claude-review`, propagate that reviewer override into the internal `research-refine` stage. The pipeline must follow `../shared-references/reviewer-routing.md`: use `claude-review` MCP (`review_start` / `review_reply_start` / `review_status`) when available; otherwise print a clear warning and fall back to Codex xhigh. This is an opt-in route only; the default pipeline reviewer remains Codex.
 
 ## Default Outputs
 
